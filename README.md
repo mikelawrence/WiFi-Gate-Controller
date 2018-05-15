@@ -17,13 +17,13 @@ _Note: The LMZ21700 Switching Power Supply has exposed pads on the bottom which 
 
 ## Design
 ### Input Power
-All components are powered by a 3.3VDC Simple Switcher from Texas Instruments ([LMZ21700](datasheets/Texas Instruments LMZ21700 Simple Switcher.pdf)). Input power is 12VDC nominal with a range of 5V-17V. The with the switching power supply efficiency at about 80% the board current draws at the lowest 5mA and an average around 12mA. Peak current during transmit is about 100mA.
+All components are powered by a 3.3VDC Simple Switcher from Texas Instruments (LMZ21700). Input power is 12VDC nominal with a range of 5V-17V. The with the switching power supply efficiency at about 80% the board current draws at the lowest 5mA and an average around 12mA. Peak current during transmit is about 100mA.
 
 ### Contact Inputs
-Contact inputs use a simple pullup to 5VDC and a Schmidt Trigger Inverter ([LMZ21700](datasheets/Texas Instruments SN74LVC2G14 Dual Schmitt-Trigger Inverter.pdf)). Note: software debounce is still required. A high value pullup resistor and series resistor (both 100k) were selected to reduce current levels when accidental high voltages are applied to the input. The resistor pullups should be installed where needed. If connecting to a gate controller that already has an input pulled up leave the pullup resistors off. The inputs are 5V tolerant. ESD Protection devices are included to further protect the inputs. Due to the Schmidt Trigger Inverter the software sees a logic high when a contact is closed (shorted to -V).
+Contact inputs use a simple pullup to 5VDC and a Schmidt Trigger Inverter (SN74LVC2G14). Note: software debounce is still required. A high value pullup resistor and series resistor (both 100k) were selected to reduce current levels when accidental high voltages are applied to the input. The resistor pullups should be installed where needed. If connecting to a gate controller that already has an input pulled up leave the pullup resistors off. The inputs are 5V tolerant. ESD Protection devices are included to further protect the inputs. Due to the Schmidt Trigger Inverter the software sees a logic high when a contact is closed (shorted to -V).
 
 ### Contact Outputs
-There are four contact outputs on the board which short to ground (-V) when activated. The switch is an overload protected Infineon [Low-Side Automotive Switch](datasheets/Infineon BTS3800SL Smart Low-Side Switch.pdf). Each contact output has input circuitry identical to the contact inputs on the board. This allows detection of external contact closures for parallel wired contacts.
+There are four contact outputs on the board which short to ground (-V) when activated. The switch is an overload protected Infineon Low-Side Automotive Switch (BTS3800SL). Each contact output has input circuitry identical to the contact inputs on the board. This allows detection of external contact closures for parallel wired contacts.
 
 ### SAMD ARM Processor and WiFi Module
 The ARM processor and ATWINC1500 WiFi module are wired identical to the MKR1000 Arduino board, thus the Arduino development environment is used for software development and the ATWINC1500 module is directly supported.
