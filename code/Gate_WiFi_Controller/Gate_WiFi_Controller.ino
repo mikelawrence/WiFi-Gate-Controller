@@ -73,7 +73,7 @@
  * Application defines
  ******************************************************************/
 // Name of this board, each board should be unique
-// Used as MQTT Client ID, HASS Node ID, and OTA Name
+// Used as MQTT Client ID, HASS Name, and OTA Name
 #define BOARD_NAME                "Front Gate"
 // input debounce time in milliseconds
 #define DEBOUNCE_TIME             25
