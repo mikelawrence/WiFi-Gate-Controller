@@ -60,15 +60,15 @@ The Arduino development environment expects a bootloader in the SAMD ARM process
 
 Next select your programmer.
 
-<img src="meta/Programmer Selection.png" width="864">
+<img src="meta/Programmer_Selection.png" width="864">
 
 Make sure the board is powered via USB and the programmer is connected to the debug connector then select "Burn Bootloader".
 
-<img src="meta/Program Bootloader.png" width="605">
+<img src="meta/Program_Bootloader.png" width="605">
 
 Now the bootloader is programmed it's time to load the "WiFi101 FirmwareUpdater" example. This will update the firmware in the ATWINC1500 module.
 
-<img src="meta/WiFi101_Firmware_Updater.png" width="853">
+<img src="meta/WiFi101_Firmware_Updater_1.png" width="853">
 
 Now "Upload" the "WiFi101 FirmwareUpdater" example.
 
@@ -76,11 +76,11 @@ Now "Upload" the "WiFi101 FirmwareUpdater" example.
 
 Update the ATWINC1500 module by selecting "WiFi101 Firmware Updater".
 
-<img src="meta/WiFi101_Firmware Updater.png" width="605">
+<img src="meta/WiFi101_Firmware_Updater_2.png" width="605">
 
 Click the "Update Firmware" button.
 
-<img src="meta/WiFi101_Firmware Updater_1.png" width="662">
+<img src="meta/WiFi101_Firmware_Updater_3.png" width="662">
 
 Finally open the "Gate_WiFi_Controller.ino" sketch downloaded from GitHub. Update the necessary defines for your Wireless network and MQTT server settings see the [Code README](code/README.md) for more information. Now upload it just like the "WiFi101 FirmwareUpdater" example. All done!
 
