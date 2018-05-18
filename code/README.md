@@ -1,5 +1,10 @@
-# Gate WiFi Controller Sketch
-The Gate WiFi Controller Sketch is written in C. It interfaces with a US Automation Gate Controller and will detect gate position and open/close the gate. The sketch is also a discoverable light for [Home Assistant](https://home-assistant.io/), an open-source home automation platform running on Python. [MQTT](http://mqtt.org/), a machine-to-machine (M2M)/"Internet of Things" connectivity protocol, is the basis of communication with Home Assistant.
+# WiFi Gate Controller Sketch
+The WiFi Gate Controller Sketch is written in C. It interfaces with a US Automation Gate Controller and will detect gate position and open/close the gate. The sketch is also a discoverable light for [Home Assistant](https://home-assistant.io/), an open-source home automation platform running on Python. [MQTT](http://mqtt.org/), a machine-to-machine (M2M)/"Internet of Things" connectivity protocol, is the basis of communication with Home Assistant.
+
+## Status
+WiFi is working nicely. Home Assistant detects and properly controls all MQTT devices: Gate Cover, Temperature Sensor, RSSI Sensor, and Status Sensor.
+
+The biggest issue at this time is occasionally the Watchdog Timer resets the sketch. This can be seen via Home Assistant when the Gate Status Sensor contains 'Reset'. This reset occurs almost daily when "ENABLE_SERIAL" is defined and less frequently when not defined.
 
 # Setup
 ## Sketch Setup
@@ -41,7 +46,7 @@ The arduino_secrets.h file is not included on Github. You must create and edit i
 #define OTA_PASSWORD            "password"
 ```
 
-The rest of the sketch settings are C defines in the [Gate WiFi Controller Sketch](Gate_WiFi_Controller/Gate_WiFi_Controller.ino).
+The rest of the sketch settings are C defines in the [WiFi Gate Controller Sketch](Gate_WiFi_Controller/Gate_WiFi_Controller.ino).
 
 ```c
 /******************************************************************
@@ -74,7 +79,7 @@ The rest of the sketch settings are C defines in the [Gate WiFi Controller Sketc
 * "HASS_GATE_NAME" is used in the MQTT topics to identify the cover and sensor to Home Assistant. Home Assistant calls this the node id. It is a string and must not contain special characters including a space.
 
 ## Home Assistant Setup
-The sketch is setup to enable MQTT Discovery on Home Assistant. If you don't want to use discovery here is the configuration of the gate in Home Assistant. Note the 'Front Gate' you see in the example yaml is the "BOARD_NAME" which is defined in [Gate WiFi  Controller Sketch](Gate_WiFi_Controller/Gate_WiFi_Controller.ino) and 'front_gate' is "HASS_GATE_NAME". The Gate WiFi Controller uses the cover platform for Home Assistant ([MQTT Cover](https://www.home-assistant.io/components/cover.mqtt/)). The other sensors use the [MQTT Sensor](https://home-assistant.io/components/sensor.mqtt/) platform.
+The sketch is setup to enable MQTT Discovery on Home Assistant. If you don't want to use discovery here is the configuration of the gate in Home Assistant. Note the 'Front Gate' you see in the example yaml is the "BOARD_NAME" which is defined in [WiFi Gate  Controller Sketch](Gate_WiFi_Controller/Gate_WiFi_Controller.ino) and 'front_gate' is "HASS_GATE_NAME". The WiFi Gate Controller uses the cover platform for Home Assistant ([MQTT Cover](https://www.home-assistant.io/components/cover.mqtt/)). The other sensors use the [MQTT Sensor](https://home-assistant.io/components/sensor.mqtt/) platform.
 
 ```yaml
 # Example configuration.yaml entry
@@ -108,7 +113,7 @@ Once the board is running Home Assistant should automatically pick up the cover 
 
 * Make sure you have MQTT installed. If you use HASS.IO goto the HASS.IO configuration and install the Mosquitto Broker.
 * Make sure you have MQTT discovery enabled. See [MQTT Discovery](https://home-assistant.io/docs/mqtt/discovery/).
-* Make sure your MQTT discovery prefix matches the HASS_PREFIX in the [Gate WiFi  Controller Sketch](Gate_WiFi_Controller/Gate_WiFi_Controller.ino).
+* Make sure your MQTT discovery prefix matches the HASS_PREFIX in the [WiFi Gate  Controller Sketch](Gate_WiFi_Controller/Gate_WiFi_Controller.ino).
 
 I use HASS.IO with the Mosquitto Broker add-on installed and my configuration for MQTT is as follows...
 ```yaml

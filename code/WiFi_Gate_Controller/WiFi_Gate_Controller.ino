@@ -800,7 +800,7 @@ bool connect() {
       // Wifi just connected
       if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset WiFi Connect", true, 1)) {
         #ifdef ENABLE_SERIAL
-        Serial.println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'WiFi Connect' topic value");
+        Serial.println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset WiFi Connect' topic value");
         #endif
       } else {
         #ifdef ENABLE_SERIAL
@@ -810,7 +810,7 @@ bool connect() {
     } else if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset MQTT Connect", true, 1)) {
       // since no reset or WiFi connect occurred then it was a MQTT Connect
       #ifdef ENABLE_SERIAL
-      Serial.println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'MQTT Connect' topic value");
+      Serial.println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset MQTT Connect' topic value");
       #endif
     } else {
       #ifdef ENABLE_SERIAL

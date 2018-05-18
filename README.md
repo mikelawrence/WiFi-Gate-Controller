@@ -5,10 +5,10 @@ This board is designed for and tested with a US Automation Gate Opener.
 
 This PCB is designed using [KiCad](http://kicad-pcb.org). Note this design is using a nightly build of KiCad NOT the current released version (4.07).
 
-_Note: The LMZ21700 Switching Power Supply has exposed pads on the bottom which requires either a reflow oven or hot air to solder properly._
+_Note: The LMZ21700 Simple Switcher, SAMD21G18 ARM Processor, and ATWINC1500 WiFi Module have exposed pads on the bottom which requires either a reflow oven or hot air to solder properly._
 
 ## Status
-* Rev 1.0 PCB has been been ordered, assembled, and tested.
+* Rev 1.0 PCB has been been ordered, assembled, and tested. Hardware is fully operational.
   * Order the PCB from [OSH Park](https://oshpark.com/shared_projects/rpQhhUss).
   * Order the parts from Mouser using this [Shared BOM](https://www.mouser.com/ProjectManager/ProjectDetail.aspx?AccessID=595b0bc14b).
 
