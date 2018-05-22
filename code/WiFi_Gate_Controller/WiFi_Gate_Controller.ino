@@ -818,6 +818,9 @@ bool connect() {
       #endif
     }
     
+    // wait a bit before updating HASS_STATUS_STATE_TOPIC again
+    delay(100);
+    
     // clear the connect reason flags
     resetOccurred = false;
     wifiConnectOccurred = false;
