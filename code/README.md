@@ -1,5 +1,5 @@
 # WiFi Gate Controller Sketch
-The WiFi Gate Controller Sketch is written in C. It interfaces with a US Automation Gate Controller and will detect gate position and open/close the gate. The sketch is also a discoverable light for [Home Assistant](https://home-assistant.io/), an open-source home automation platform running on Python. [MQTT](http://mqtt.org/), a machine-to-machine (M2M)/"Internet of Things" connectivity protocol, is the basis of communication with Home Assistant.
+The WiFi Gate Controller Sketch is written in C. It interfaces with a US Automation Gate Controller and will detect gate position and open/close the gate. The sketch is a discoverable cover and sensor for [Home Assistant](https://home-assistant.io/), an open-source home automation platform running on Python. [MQTT](http://mqtt.org/), a machine-to-machine (M2M)/"Internet of Things" connectivity protocol, is the basis of communication with Home Assistant.
 
 ## Status
 WiFi is working nicely. Home Assistant detects and properly controls all MQTT devices: Gate Cover, Temperature Sensor, RSSI Sensor, and Status Sensor.

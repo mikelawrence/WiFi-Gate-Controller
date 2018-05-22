@@ -82,7 +82,7 @@ Click the "Update Firmware" button.
 
 <img src="meta/WiFi101_Firmware_Updater_3.png" width="662">
 
-Finally open the "Gate_WiFi_Controller.ino" sketch downloaded from GitHub. Update the necessary defines for your Wireless network and MQTT server settings see the [Code README](code/README.md) for more information. Now upload it just like the "WiFi101 FirmwareUpdater" example. All done!
+Finally open the "WiFi_Gate_Controller.ino" sketch downloaded from GitHub. Update the necessary defines for your Wireless network and MQTT server settings see the [Code README](code/README.md) for more information. Now upload it just like the "WiFi101 FirmwareUpdater" example. All done!
 
 # Acknowledgments
 [Arduino](www.arduino.cc) kindly develops open source hardware and software which makes writing software for the board incredibly easy.
