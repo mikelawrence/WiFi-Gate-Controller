@@ -4,3 +4,4 @@ code/Gate_WiFi_Controller/arduino_secrets.h
 *.bak
 *.zip
 code/WiFi_Gate_Controller/arduino_secrets.h
+code/Debug.txt

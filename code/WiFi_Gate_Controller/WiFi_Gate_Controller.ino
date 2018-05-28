@@ -63,7 +63,7 @@
 // Enable Watchdog Timer
 #define ENABLE_WATCHDOG
 // Enable OTA updates
-//#define ENABLE_OTA_UPDATES
+#define ENABLE_OTA_UPDATES
 // Enable Serial on USB
 //#define ENABLE_SERIAL
 // Current Version
@@ -76,7 +76,7 @@
 // Used as MQTT Client ID, HASS Name, and OTA Name
 #define BOARD_NAME                "Front Gate"
 // input debounce time in milliseconds
-#define DEBOUNCE_TIME             25
+#define DEBOUNCE_TIME             50
 // output contact time in milliseconds
 #define CONTACT_TIME              500
 // output contact dead time between contact closures in milliseconds
@@ -156,7 +156,7 @@ uint8_t  outputDeadband = HIGH;
 // used to keep track of deadband time between concact closures
 uint32_t lastOutputDeadbandTime = 0;
 // current input state, arranged in array by input_pins
-uint8_t  inputState[NUMBER_INPUTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
+int8_t   inputState[NUMBER_INPUTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 // last Gate open/closed state true/false
 int8_t   lastGateOpenState = -1;
 // when true a reset occurred recently
@@ -299,7 +299,7 @@ void setup() {
 // Arduino loop function
 void loop() {
   static uint32_t lastDebounceTime[NUMBER_INPUTS] = {0, 0, 0, 0, 0, 0, 0, 0};
-  static uint8_t  lastDebounceInput[NUMBER_INPUTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
+  static int8_t   lastDebounceInput[NUMBER_INPUTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
   static uint32_t lastTempUpdate = 0 - TEMP_RATE;     // used to measure the temp at a defined rate
   static uint32_t lastTempRequest = 0 - TEMP_RATE;    // used to delay the time between temp request and temp read
   static GateStateEnum curGateState = GS_RESET;       // current gate state for state machine
@@ -308,6 +308,7 @@ void loop() {
   float           lastTemp;                           // last measured temperature
   uint8_t         inputReading;                       // last input read
   bool            inputStabilized = true;             // when true inputs are stabilized and are ready to be read
+  uint8_t         oneInputActive;                     // when true one of the command inputs is active
   
   // Reset the watchdog with every loop to make sure the sketch keeps running.
   watchdogReset();
@@ -340,7 +341,7 @@ void loop() {
     // last is now current
     lastDebounceInput[i] = inputReading;
   }
-  
+
   // handle deactivating outputs
   for(int i = 0; i < NUMBER_OUTPUTS; i++) {
     if (outputState[i] == HIGH) {
@@ -349,7 +350,6 @@ void loop() {
         // output has been active long enough
         outputState[i] = LOW;                         // deactive output
         digitalWrite(output_pins[i], LOW);            // make output inactive
-        digitalWrite(BOARD_LED, LOW);                 // deactivate visual indication
       }
     }
   }
@@ -371,7 +371,21 @@ void loop() {
       break;
     }
   }
-  
+
+  // turn LED on if any of the command inputs are high
+  oneInputActive = false;
+  for(int i = 0; i < 3; i++) {
+    if (inputState[i] == HIGH) {
+      oneInputActive = true;
+      break;
+    }
+  }
+  if (oneInputActive) {
+    digitalWrite(BOARD_LED, HIGH);
+  } else {
+    digitalWrite(BOARD_LED, LOW);
+  }
+
   // if inputs are stabilized then check inputs as normal
   if (inputStabilized) {
     // handle Gate State Machine
@@ -856,7 +870,6 @@ void messageReceived(MQTTClient *client, char topic[], char payload[], int paylo
         lastOutputTime[OPEN_BUTTON] = millis();       // start the timer used to cancel output
         outputDeadband = HIGH;                        // contact closure in progress no other contact closures can occur
         lastOutputDeadbandTime = lastOutputTime[OPEN_BUTTON]; // start a timer for deadband timeout
-        digitalWrite(BOARD_LED, HIGH);                // visual indication that an output is active
         #ifdef ENABLE_SERIAL
         Serial.println("Accepted 'OPEN' MQTT Command");
         #endif
@@ -866,7 +879,6 @@ void messageReceived(MQTTClient *client, char topic[], char payload[], int paylo
         lastOutputTime[CLOSE_BUTTON] = millis();      // start the timer used to cancel output
         outputDeadband = HIGH;                        // contact closure in progress no other contact closures can occur
         lastOutputDeadbandTime = lastOutputTime[CLOSE_BUTTON]; // start a timer for deadband timeout
-        digitalWrite(BOARD_LED, HIGH);                // visual indication that an output is active
         #ifdef ENABLE_SERIAL
         Serial.println("Accepted 'CLOSE' MQTT Command");
         #endif
@@ -876,7 +888,6 @@ void messageReceived(MQTTClient *client, char topic[], char payload[], int paylo
         lastOutputTime[TOGGLE_BUTTON] = millis();     // start the timer used to cancel output
         outputDeadband = HIGH;                        // contact closure in progress no other contact closures can occur
         lastOutputDeadbandTime = lastOutputTime[TOGGLE_BUTTON]; // start a timer for deadband timeout
-        digitalWrite(BOARD_LED, HIGH);                // visual indication that an output is active
         #ifdef ENABLE_SERIAL
         Serial.println("Accepted 'STOP' MQTT Command");
         #endif
