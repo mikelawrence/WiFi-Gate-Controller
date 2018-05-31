@@ -63,11 +63,13 @@
 // Enable Watchdog Timer
 #define ENABLE_WATCHDOG
 // Enable OTA updates
-#define ENABLE_OTA_UPDATES
+//#define ENABLE_OTA_UPDATES
 // Enable Serial on USB
 //#define ENABLE_SERIAL
+// Enable Low Power Mode on WiFi
+//#define ENABLE_WIFI_LOW_POWER
 // Current Version
-#define VERSION                   "0.1"
+#define VERSION                   "0.2"
 
 /******************************************************************
  * Application defines
@@ -82,7 +84,7 @@
 // output contact dead time between contact closures in milliseconds
 #define CONTACT_DEADBAND_TIME     100
 // temperature measurement time in milliseconds, Must be greater than 5 seconds
-#define TEMP_RATE                 5*60*1000
+#define TEMP_RATE                 1*60*1000
 
 /******************************************************************
  * Home Assistant MQTT Defines
@@ -111,29 +113,39 @@
  * Board Defines
  ******************************************************************/
 // Output defines
-#define NUMBER_OUTPUTS          4
-#define OPEN_BUTTON             0
-#define CLOSE_BUTTON            1
-#define TOGGLE_BUTTON           2
-#define UNUSED_BUTTON           3
+#define NUMBER_OUTPUTS            4
+#define OPEN_BUTTON               0
+#define CLOSE_BUTTON              1
+#define TOGGLE_BUTTON             2
+#define UNUSED_BUTTON             3
 // Input defines
-#define NUMBER_INPUTS           8
-#define OPEN_BUTTON_SENSE       0
-#define CLOSE_BUTTON_SENSE      1
-#define UNUSED_BUTTON_SENSE     2
-#define TOGGLE_BUTTON_SENSE     3
-#define OPEN_LIMIT_SENSE        4
-#define CLOSE_LIMIT_SENSE       5
-#define MAILBOX_SENSE           6
-#define DROPBOX_SENSE           7
+#define NUMBER_INPUTS             8
+#define OPEN_BUTTON_SENSE         0
+#define CLOSE_BUTTON_SENSE        1
+#define UNUSED_BUTTON_SENSE       2
+#define TOGGLE_BUTTON_SENSE       3
+#define OPEN_LIMIT_SENSE          4
+#define CLOSE_LIMIT_SENSE         5
+#define MAILBOX_SENSE             6
+#define DROPBOX_SENSE             7
 // LED
-#define BOARD_LED               LED_BUILTIN
+#define BOARD_LED                 LED_BUILTIN
 // pin number array for the four outputs on this board (pins are D0, D1, D2, D3)
 const int8_t output_pins[NUMBER_OUTPUTS] = {0, 1, 2, 3};
 // pin number array for the eight inputs on this board (pins are A0, A1, A2, A3, D4, D5, A4, D7)
 const int8_t input_pins[NUMBER_INPUTS] = {PIN_A0, PIN_A1, PIN_A2, PIN_A3, 4, 5, PIN_A4, 7};
 // Enumeration for gate state which also keeps track of gate opening or closing
 enum GateStateEnum {GS_UNKNOWN, GS_RESET, GS_ERROR, GS_CLOSED, GS_OPEN, GS_CLOSING, GS_OPENING}; 
+
+// Logging/Printing defines
+#ifdef ENABLE_SERIAL
+#define Print(...)                Serial.print(__VA_ARGS__)
+#define Println(...)              Serial.println(__VA_ARGS__)
+#else
+#define Print(...)
+#define Println(...)
+#endif
+
 
 /******************************************************************
  * Global Variables
@@ -159,6 +171,8 @@ uint32_t lastOutputDeadbandTime = 0;
 int8_t   inputState[NUMBER_INPUTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 // last Gate open/closed state true/false
 int8_t   lastGateOpenState = -1;
+// keeps track of how long we are not connected
+uint32_t lastDisconnectTime;
 // when true a reset occurred recently
 bool     resetOccurred = true;
 // when true WiFi was recently disconnected from the network
@@ -166,7 +180,236 @@ bool     wifiDisconnectOccurred = true;
 // when true WiFi was recently connected to the network
 bool     wifiConnectOccurred = false;
 
-// Arduino setup function
+/******************************************************************
+ * Reset the watchdog timer
+ ******************************************************************/
+inline void watchdogReset(void) {
+  #ifdef ENABLE_WATCHDOG
+  if (!WDT->STATUS.bit.SYNCBUSY)                // Check if the WDT registers are synchronized
+    REG_WDT_CLEAR = WDT_CLEAR_CLEAR_KEY;        // Clear the watchdog timer
+  #endif
+}
+
+/******************************************************************
+ * Verify/ Make WiFi and MQTT connections
+ ******************************************************************/
+bool connect() {
+  byte mac[6];
+  IPAddress ip;
+  int32_t status = WiFi.status();
+  
+  // Reset the watchdog every time this function is run
+  watchdogReset();
+  
+  if (status != WL_CONNECTED) {
+    // Wifi is disconnected
+    wifiDisconnectOccurred = true;                    // we were disconnected
+    if (millis() - lastDisconnectTime > 15 * 60 * 1000) {
+      // it's been 15 minutes since we were last connected, turn off WiFi module
+      WiFi.end();
+      // Turn on WINC1500 WiFi module and connect to network again
+      WiFi.begin(SECRET_SSID, SECRET_PASSWORD);
+      // Reconnect in another 15 minutes
+      lastDisconnectTime = millis();
+      Println("Reconnecting to SSID: " SECRET_SSID "...");
+    }
+    return false;                                     // return with not connected
+  }
+  
+  // update last time we were disconnected to now because WiFi is connected
+  lastDisconnectTime = millis();
+  
+  if (wifiDisconnectOccurred && (status == WL_CONNECTED)) {
+    // WiFi just connected
+    Println("Connected to SSID: " SECRET_SSID);
+    
+    // we have detected that we just connected
+    wifiDisconnectOccurred = false;                   // so we won't print network stats until next reconnect
+    wifiConnectOccurred = true;                       // so MQTT publishing will know that Wifi just connected
+    
+    // Enable WiFi Low Power Mode
+    #ifdef ENABLE_WIFI_LOW_POWER
+    WiFi.lowPowerMode();
+    Println("  Low Power Mode enabled");
+    #endif
+    
+    #ifdef ENABLE_SERIAL
+    // Display MAC Address
+    WiFi.macAddress(mac);
+    Print("  MAC Address: ");
+    for (int i = 5; i != 0; i--) {
+      if (mac[i] < 16) Print("0");
+      Print(mac[i], HEX);
+      Print(":");
+    }
+    if (mac[0] < 16) Print("0");
+    Println(mac[0], HEX);
+    
+    // Display IP Address
+    ip = WiFi.localIP();
+    Print("  IP Address: ");
+    Println(ip);
+    #endif
+    
+    #ifdef ENABLE_OTA_UPDATES
+    // start the WiFi OTA library with internal based storage
+    WiFiOTA.begin(BOARD_NAME, OTA_PASSWORD, InternalStorage);
+    Println("WiFi OTA updates enabled");
+    #endif
+  }
+  
+  // WiFi is connected, see if MQTT is connected
+  if (!mqtt.connected()) {
+    // we are not currently connected to MQTT Server
+    Print("Connecting to MQTT Server:" MQTT_SERVER "...");
+    if (mqtt.connect(BOARD_NAME, MQTT_USERNAME, MQTT_PASSWORD)) {
+      // successfully connected to MQTT server
+      Println("Success");
+    } else {
+      // failed to connect to MQTT server
+      Println("Failed");
+      return false;
+    }
+    
+    // Subscribe to Home Assistant command topic
+    if (!mqtt.subscribe(HASS_GATE_COMMAND_TOPIC)) {
+      Println("  Failed to subscribe '" HASS_GATE_COMMAND_TOPIC "' MQTT topic");
+    } else {
+      Println("  Subscribed to '" HASS_GATE_COMMAND_TOPIC "' MQTT topic");
+    }
+    
+    // Publish Home Assistant gate config topic
+    if (!mqtt.publish(HASS_GATE_CONFIG_TOPIC, HASS_GATE_CONFIG, true, 1)) {
+      Println("  Failed to publish '" HASS_GATE_CONFIG_TOPIC "' MQTT topic");
+    } else {
+      Println("  Published '" HASS_GATE_CONFIG_TOPIC "' MQTT topic, '" HASS_GATE_CONFIG "' topic value");
+    }
+    
+    // Publish Home Assistant temperature config topic
+    if (!mqtt.publish(HASS_TEMP_CONFIG_TOPIC, HASS_TEMP_CONFIG, true, 1)) {
+      Println("  Failed to publish '" HASS_TEMP_CONFIG_TOPIC "' MQTT topic");
+    } else {
+      Println("  Published '" HASS_TEMP_CONFIG_TOPIC "' MQTT topic, '" HASS_TEMP_CONFIG "' topic value");
+    }
+    
+    // Publish Home Assistant RSSI config topic
+    if (!mqtt.publish(HASS_RSSI_CONFIG_TOPIC, HASS_RSSI_CONFIG, true, 1)) {
+      Println("  Failed to publish '" HASS_RSSI_CONFIG_TOPIC "' MQTT topic");
+    } else {
+      Println("  Published '" HASS_RSSI_CONFIG_TOPIC "' MQTT topic, '" HASS_RSSI_CONFIG "' topic value");
+    }
+    
+    // Publish Home Assistant status config topic
+    if (!mqtt.publish(HASS_STATUS_CONFIG_TOPIC, HASS_STATUS_CONFIG, true, 1)) {
+      Println("  Failed to publish '" HASS_STATUS_CONFIG_TOPIC "' MQTT topic");
+    } else {
+      Println("  Published '" HASS_STATUS_CONFIG_TOPIC "' MQTT topic, '" HASS_STATUS_CONFIG "' topic value");
+    }
+    
+    if (resetOccurred) {                              // Hardware reset occurred
+      // reset just recently occurred
+      if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset Hardware", true, 1)) {
+        Println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset Hardware' topic value");
+      } else {
+        Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset Hardware' topic value");
+      }
+    } else if (wifiConnectOccurred) {                 // WiFi Connected
+      // Wifi just connected
+      if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset WiFi Connect", true, 1)) {
+        Println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset WiFi Connect' topic value");
+      } else {
+        Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset WiFi Connect' topic value");
+      }
+    } else if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset MQTT Connect", true, 1)) {
+      // since no reset or WiFi connect occurred then it was a MQTT Connect
+      Println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset MQTT Connect' topic value");
+    } else {
+      Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset MQTT Connect' topic value");
+    }
+    
+    // wait a bit before updating HASS_STATUS_STATE_TOPIC again
+    delay(500);
+    
+    // clear the connect reason flags
+    resetOccurred = false;
+    wifiConnectOccurred = false;
+    
+    // running successfully
+    if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Ready", true, 1)) {
+      Println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Ready' topic value");
+    } else {
+      Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Ready' topic value");
+    }
+    
+    Println("WiFi Gate Controller is ready!\n");
+  }
+
+  // wait a bit before updating HASS_STATUS_STATE_TOPIC again
+  delay(500);
+    
+  // if we got here then we were successfull
+  return true;
+}
+
+/******************************************************************
+ * MQTT subscribed message received
+ ******************************************************************/
+void messageReceived(MQTTClient *client, char topic[], char payload[], int payload_length) {
+  if (strcmp(topic, HASS_GATE_COMMAND_TOPIC) == 0) {
+    // gate command has been received
+    if (outputDeadband == LOW) {
+      // no other output is in progress
+      if (strcmp(payload, "OPEN") == 0) {             // time to OPEN the gate
+        digitalWrite(output_pins[OPEN_BUTTON], HIGH); // make OPEN Button active
+        outputState[OPEN_BUTTON] = HIGH;              // indicate to loop() that OPEN Button output is active
+        lastOutputTime[OPEN_BUTTON] = millis();       // start the timer used to cancel output
+        outputDeadband = HIGH;                        // contact closure in progress no other contact closures can occur
+        lastOutputDeadbandTime = lastOutputTime[OPEN_BUTTON]; // start a timer for deadband timeout
+        #ifdef ENABLE_SERIAL
+        Println("Accepted 'OPEN' MQTT Command");
+        #endif
+      } else if (strcmp(payload, "CLOSE") == 0) {     // time to CLOSE the gate
+        digitalWrite(output_pins[CLOSE_BUTTON], HIGH);// make CLOSE Button active
+        outputState[CLOSE_BUTTON] = HIGH;             // indicate to loop() that CLOSE Button output is active
+        lastOutputTime[CLOSE_BUTTON] = millis();      // start the timer used to cancel output
+        outputDeadband = HIGH;                        // contact closure in progress no other contact closures can occur
+        lastOutputDeadbandTime = lastOutputTime[CLOSE_BUTTON]; // start a timer for deadband timeout
+        #ifdef ENABLE_SERIAL
+        Println("Accepted 'CLOSE' MQTT Command");
+        #endif
+     } else if (strcmp(payload, "STOP") == 0) {      // time to TOGGLE the gate
+        digitalWrite(output_pins[TOGGLE_BUTTON], HIGH); // make TOGGLE Button active
+        outputState[TOGGLE_BUTTON] = HIGH;            // indicate to loop() that TOGGLE Button output is active
+        lastOutputTime[TOGGLE_BUTTON] = millis();     // start the timer used to cancel output
+        outputDeadband = HIGH;                        // contact closure in progress no other contact closures can occur
+        lastOutputDeadbandTime = lastOutputTime[TOGGLE_BUTTON]; // start a timer for deadband timeout
+        #ifdef ENABLE_SERIAL
+        Println("Accepted 'STOP' MQTT Command");
+        #endif
+      }
+    } else {
+      // another output is in progress so we ignore this command
+      if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Ignored MQTT Command", true, 1)) {
+        #ifdef ENABLE_SERIAL
+        Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic");
+        #endif
+      } else {
+        #ifdef ENABLE_SERIAL
+        Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Ignored MQTT Command' topic value");
+        #endif
+      }
+      #ifdef ENABLE_SERIAL
+      Print("Ignored '");
+      Print(payload);
+      Println("' MQTT Command");
+      #endif
+    }
+  }
+}
+
+/******************************************************************
+ * Standard Arduino setup function
+ ******************************************************************/
 void setup() {
   // Serial setup
   #ifdef ENABLE_SERIAL
@@ -195,45 +438,43 @@ void setup() {
   #endif
   
   // Announce who we are and software
-  #ifdef ENABLE_SERIAL
-  Serial.println("\nWiFi Gate Controller: " BOARD_NAME);
-  Serial.println("  Software Version: " VERSION);
-  #endif
+  Println("\nWiFi Gate Controller: " BOARD_NAME);
+  Println("  Software Version: " VERSION);
   
   // Start up the Dallas Temperature library 
   sensors.begin();
   // see that we have at least one temperature sensor
   #ifdef ENABLE_SERIAL
   if (sensors.getDeviceCount() == 0) {
-      Serial.println("No 1-Wire temperature sensors found.");
+      Println("No 1-Wire temperature sensors found.");
   } else {
     DeviceAddress deviceAddress;
     sensors.getAddress(deviceAddress, 0);
-    Serial.print("Found ");
+    Print("Found ");
     switch (deviceAddress[0]) {
       case 0x10:
-        Serial.print("DS18S20");
+        Print("DS18S20");
         break;
       case 0x28:
-        Serial.print("DS18B20");
+        Print("DS18B20");
         break;
       case 0x22:
-        Serial.print("DS1822");
+        Print("DS1822");
         break;
       case 0x3B:
-        Serial.print("DS1825");
+        Print("DS1825");
         break;
       default:
-        Serial.print("Unknown");
+        Print("Unknown");
         break;
     }
-    Serial.print(" temperature sensor: 0x");
+    Print(" temperature sensor: 0x");
     for (int i = 0; i < 8; i++)
     {
-      if (deviceAddress[i] < 16) Serial.print("0");
-      Serial.print(deviceAddress[i], HEX);
+      if (deviceAddress[i] < 16) Print("0");
+      Print(deviceAddress[i], HEX);
     }
-    Serial.println("");
+    Println("");
   }
   #endif
   
@@ -242,34 +483,35 @@ void setup() {
   
   // WiFi setup
   if (WiFi.status() == WL_NO_SHIELD) {                // check for the presence of the WINC1500
-    #ifdef ENABLE_SERIAL
-    Serial.println("WINC1500 not present! Nothing can be done!");
-    #endif
+    Println("WINC1500 not present! Nothing can be done!");
     // don't continue:
     while (true);
   }
   #ifdef ENABLE_SERIAL
-  Serial.println("WINC1500 Detected");
+  Println("WINC1500 Detected");
   
   // Display Firmware Version
   String fv = WiFi.firmwareVersion();
-  Serial.print("  Firmware Version: ");
-  Serial.println(fv);
-  Serial.print("  Library Version: ");
-  Serial.println(WIFI_FIRMWARE_LATEST_MODEL_B);
+  Print("  Firmware Version: ");
+  Println(fv);
+  Print("  Library Version: ");
+  Println(WIFI_FIRMWARE_LATEST_MODEL_B);
   #endif
         
   // Turn on WINC1500 WiFi module and connect to network now
   WiFi.begin(SECRET_SSID, SECRET_PASSWORD);
-
+  lastDisconnectTime = millis();
+  Println("Connecting to SSID: " SECRET_SSID "...");
+  
   // MQTT setup
-  mqtt.setOptions(15*60, true, 5000);                 // keep Alive, Clean Session, Timeout
+  mqtt.setOptions(65, true, 5000);                    // keep Alive, Clean Session, Timeout
   mqtt.begin(MQTT_SERVER, MQTT_SERVERPORT, net);
   mqtt.onMessageAdvanced(messageReceived);
   
   #ifdef ENABLE_WATCHDOG
-  // Set up the generic clock (GCLK2) used to clock the watchdog timer at 1.024kHz
-  REG_GCLK_GENDIV = GCLK_GENDIV_DIV(4) |              // Divide the 32.768kHz clock source by divisor 32, where 2^(4 + 1): 32.768kHz/32=1.024kHz
+  // Set up the generic clock (GCLK2) used to clock the watchdog timer at 256Hz
+  REG_GCLK_GENDIV = GCLK_GENDIV_DIV(6) |              // Divide the 32.768kHz clock source by divisor 32
+                                                      //   where 2^(6 + 1): 32.768kHz/128=256Hz
                     GCLK_GENDIV_ID(2);                // Select Generic Clock (GCLK) 2
   while (GCLK->STATUS.bit.SYNCBUSY);                  // Wait for synchronization
 
@@ -286,7 +528,7 @@ void setup() {
                      GCLK_CLKCTRL_ID_WDT;             // Feed the GCLK2 to the WDT
   while (GCLK->STATUS.bit.SYNCBUSY);                  // Wait for synchronization
 
-  REG_WDT_CONFIG = 0xBu;                              // Set the WDT reset timeout to 16384 clock cycles or 16s seconds
+  REG_WDT_CONFIG = WDT_CONFIG_PER_16K;                // Set the WDT reset timeout to 16384 clock cycles or 64s seconds
   while(WDT->STATUS.bit.SYNCBUSY);                    // Wait for synchronization
   REG_WDT_CTRL = WDT_CTRL_ENABLE;                     // Enable the WDT in normal mode
   while(WDT->STATUS.bit.SYNCBUSY);                    // Wait for synchronization
@@ -296,7 +538,9 @@ void setup() {
   connect();
 }
 
-// Arduino loop function
+/******************************************************************
+ * Standard Arduino loop function
+ ******************************************************************/
 void loop() {
   static uint32_t lastDebounceTime[NUMBER_INPUTS] = {0, 0, 0, 0, 0, 0, 0, 0};
   static int8_t   lastDebounceInput[NUMBER_INPUTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
@@ -310,8 +554,8 @@ void loop() {
   bool            inputStabilized = true;             // when true inputs are stabilized and are ready to be read
   uint8_t         oneInputActive;                     // when true one of the command inputs is active
   
-  // Reset the watchdog with every loop to make sure the sketch keeps running.
-  watchdogReset();
+  // Reset the watchdog every time loop() is called
+  //watchdogReset();
   
   #ifdef ENABLE_OTA_UPDATES
   // check for WiFi OTA updates
@@ -341,7 +585,7 @@ void loop() {
     // last is now current
     lastDebounceInput[i] = inputReading;
   }
-
+  
   // handle deactivating outputs
   for(int i = 0; i < NUMBER_OUTPUTS; i++) {
     if (outputState[i] == HIGH) {
@@ -466,7 +710,7 @@ void loop() {
         break;
     }
   }
-    
+  
   // Check connections
   if (!connect()) {
     // we are not currently connected, ignore rest of loop to prevent MQTT publishing
@@ -476,7 +720,7 @@ void loop() {
     nextGateState = GS_UNKNOWN;
     return;
   }
-
+  
   // if inputs are stabilized then check inputs as normal
   if (inputStabilized) {
     bool publishFailed = false;                       // defualt is successful publish
@@ -489,61 +733,41 @@ void loop() {
         case GS_ERROR:
           if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Gate Error", true, 1)) {
             publishFailed = true;                     // publish failed
-            #ifdef ENABLE_SERIAL
-            Serial.println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, '' topic value");
-            #endif
+            Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, '' topic value");
           } else {
-            #ifdef ENABLE_SERIAL
-            Serial.println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, '' topic value");
-            #endif
+            Println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, '' topic value");
           }
           break;
         case GS_CLOSED:
           if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Gate Closed", true, 1)) {
             publishFailed = true;                     // publish failed
-            #ifdef ENABLE_SERIAL
-            Serial.println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Closed' topic value");
-            #endif
+            Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Closed' topic value");
           } else {
-            #ifdef ENABLE_SERIAL
-            Serial.println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Closed' topic value");
-            #endif
+            Println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Closed' topic value");
           }
           break;
         case GS_OPEN:
           if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Gate Open", true, 1)) {
             publishFailed = true;                     // publish failed
-            #ifdef ENABLE_SERIAL
-            Serial.println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Open' topic value");
-            #endif
+            Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Open' topic value");
           } else {
-            #ifdef ENABLE_SERIAL
-            Serial.println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Open' topic value");
-            #endif
+            Println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Open' topic value");
           }
           break;
         case GS_CLOSING:
           if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Gate Closing", true, 1)) {
             publishFailed = true;                     // publish failed
-            #ifdef ENABLE_SERIAL
-            Serial.println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Closing' topic value");
-            #endif
+            Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Closing' topic value");
           } else {
-            #ifdef ENABLE_SERIAL
-            Serial.println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Closing' topic value");
-            #endif
+            Println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Closing' topic value");
           }
           break;
         case GS_OPENING:
           if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Gate Opening", true, 1)) {
             publishFailed = true;                     // publish failed
-            #ifdef ENABLE_SERIAL
-            Serial.println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Opening' topic value");
-            #endif
+            Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Opening' topic value");
           } else {
-            #ifdef ENABLE_SERIAL
-            Serial.println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Opening' topic value");
-            #endif
+            Println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Opening' topic value");
           }
           break;
         default:
@@ -581,7 +805,7 @@ void loop() {
         // gate is closed
         nextGateStateOpen = false;
       }
-
+      
       // handle change of gate state
       if (curGateStateOpen != nextGateStateOpen) {
         switch (nextGateStateOpen) {
@@ -598,20 +822,16 @@ void loop() {
         // publish gate state change
         if (!mqtt.publish(HASS_GATE_STATE_TOPIC, tempStr, true, 1)) {
           publishFailed = true;                       // publish failed
-          #ifdef ENABLE_SERIAL
-          Serial.print("Failed to publish '" HASS_GATE_STATE_TOPIC "' MQTT topic, '");
-          Serial.print(tempStr);
-          Serial.println("' topic value");
-          #endif
+          Print("Failed to publish '" HASS_GATE_STATE_TOPIC "' MQTT topic, '");
+          Print(tempStr);
+          Println("' topic value");
         } else {
-          #ifdef ENABLE_SERIAL
-          Serial.print("Published '" HASS_GATE_STATE_TOPIC "' MQTT topic, '");
-          Serial.print(tempStr);
-          Serial.println("' topic value");
-          #endif
+          Print("Published '" HASS_GATE_STATE_TOPIC "' MQTT topic, '");
+          Print(tempStr);
+          Println("' topic value");
         }
       }
-
+      
       // check for failure to publish states
       if (publishFailed) {
         // set Gate States so next loop will detect current Gate position
@@ -624,7 +844,7 @@ void loop() {
       }
     }
   }
- 
+  
   // is it time to request a temperature?
   if (sensors.getDeviceCount() > 0) {    
     // at least one 1-wire temp device is available
@@ -641,305 +861,26 @@ void loop() {
         dtostrf(lastTemp, 1, 1, tempStr);             // convert temperature to string
         // publish the just read temperture
         if (!mqtt.publish(HASS_TEMP_STATE_TOPIC, tempStr, false, 1)) {
-          #ifdef ENABLE_SERIAL
-          Serial.print("Failed to publish '" HASS_TEMP_STATE_TOPIC "' MQTT topic, '");
-          Serial.print(tempStr);
-          Serial.println("' topic value");
-          #endif
+          Print("Failed to publish '" HASS_TEMP_STATE_TOPIC "' MQTT topic, '");
+          Print(tempStr);
+          Println("' topic value");
         } else {
-          #ifdef ENABLE_SERIAL
-          Serial.print("Published '" HASS_TEMP_STATE_TOPIC "' MQTT topic, '");
-          Serial.print(tempStr);
-          Serial.println("' topic value");
-          #endif
+          Print("Published '" HASS_TEMP_STATE_TOPIC "' MQTT topic, '");
+          Print(tempStr);
+          Println("' topic value");
         }
         itoa(WiFi.RSSI(), tempStr, 10);
         // publish the RSSI too
         if (!mqtt.publish(HASS_RSSI_STATE_TOPIC, tempStr, false, 1)) {
-          #ifdef ENABLE_SERIAL
-          Serial.print("Failed to publish '" HASS_RSSI_STATE_TOPIC "' MQTT topic, '");
-          Serial.print(tempStr);
-          Serial.println("' topic value");
-          #endif
+          Print("Failed to publish '" HASS_RSSI_STATE_TOPIC "' MQTT topic, '");
+          Print(tempStr);
+          Println("' topic value");
         } else {
-          #ifdef ENABLE_SERIAL
-          Serial.print("Published '" HASS_RSSI_STATE_TOPIC "' MQTT topic, '");
-          Serial.print(tempStr);
-          Serial.println("' topic value");
-          #endif
+          Print("Published '" HASS_RSSI_STATE_TOPIC "' MQTT topic, '");
+          Print(tempStr);
+          Println("' topic value");
         }
       }
     }
   }
 }
-
-// Verify/Make connections
-bool connect() {
-  byte mac[6];
-  IPAddress ip;
-
-  if (WiFi.status() != WL_CONNECTED) {
-    // Wifi is disconnected
-    wifiDisconnectOccurred = true;                    // keep track of the fact we were disconnected
-    return false;                                     // return with not connected
-  }
-  if (wifiDisconnectOccurred && (WiFi.status() == WL_CONNECTED)) {
-    // WiFi is connected and previously we were disconnected
-    #ifdef ENABLE_SERIAL
-    Serial.println("Connected to SSID: " SECRET_SSID);
-    #endif
-
-    // we have detected that we just connected
-    wifiDisconnectOccurred = false;                   // so we won't print network stats until next reconnect
-    wifiConnectOccurred = true;                       // so MQTT publishing will know that Wifi just connected
-
-    // Enable WiFi Low Power Mode
-    WiFi.lowPowerMode();
-    
-    #ifdef ENABLE_SERIAL
-    Serial.println("  Low Power Mode enabled");
-    
-    // Display MAC Address
-    WiFi.macAddress(mac);
-    Serial.print("  MAC Address: ");
-    for (int i = 5; i != 0; i--) {
-      if (mac[i] < 16) Serial.print("0");
-      Serial.print(mac[i], HEX);
-      Serial.print(":");
-    }
-    if (mac[0] < 16) Serial.print("0");
-    Serial.println(mac[0], HEX);
-    
-    // Display IP Address
-    ip = WiFi.localIP();
-    Serial.print("  IP Address: ");
-    Serial.println(ip);
-    #endif
-
-    #ifdef ENABLE_OTA_UPDATES
-    // start the WiFi OTA library with internal based storage
-    WiFiOTA.begin(BOARD_NAME, OTA_PASSWORD, InternalStorage);
-    #ifdef ENABLE_SERIAL
-    Serial.println("WiFi OTA updates enabled");
-    #endif
-    #endif
-  } 
-  
-  if (!mqtt.connected()) {
-    // we are not currently connected to MQTT Server
-    #ifdef ENABLE_SERIAL
-    Serial.print("Connecting to MQTT Server:" MQTT_SERVER "...");
-    #endif
-    if (mqtt.connect(BOARD_NAME, MQTT_USERNAME, MQTT_PASSWORD)) {
-      // successfully connected to MQTT server
-      #ifdef ENABLE_SERIAL
-      Serial.println("Success");
-      #endif
-    } else {
-      // failed to connect to MQTT server
-      #ifdef ENABLE_SERIAL
-      Serial.println("Failed");
-      printWiFiStatus(true);
-      #endif
-      return false;
-    }
-    
-    // Subscribe to Home Assistant command topic
-    if (!mqtt.subscribe(HASS_GATE_COMMAND_TOPIC)) {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Failed to subscribe '" HASS_GATE_COMMAND_TOPIC "' MQTT topic");
-      #endif
-    } else {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Subscribed to '" HASS_GATE_COMMAND_TOPIC "' MQTT topic");
-      #endif
-    }
-    
-    // Publish Home Assistant gate config topic
-    if (!mqtt.publish(HASS_GATE_CONFIG_TOPIC, HASS_GATE_CONFIG, true, 1)) {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Failed to publish '" HASS_GATE_CONFIG_TOPIC "' MQTT topic");
-      #endif
-    } else {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Published '" HASS_GATE_CONFIG_TOPIC "' MQTT topic, '" HASS_GATE_CONFIG "' topic value");
-      #endif
-    }
-    
-    // Publish Home Assistant temperature config topic
-    if (!mqtt.publish(HASS_TEMP_CONFIG_TOPIC, HASS_TEMP_CONFIG, true, 1)) {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Failed to publish '" HASS_TEMP_CONFIG_TOPIC "' MQTT topic");
-      #endif
-    } else {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Published '" HASS_TEMP_CONFIG_TOPIC "' MQTT topic, '" HASS_TEMP_CONFIG "' topic value");
-      #endif
-    }
-    
-    // Publish Home Assistant RSSI config topic
-    if (!mqtt.publish(HASS_RSSI_CONFIG_TOPIC, HASS_RSSI_CONFIG, true, 1)) {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Failed to publish '" HASS_RSSI_CONFIG_TOPIC "' MQTT topic");
-      #endif
-    } else {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Published '" HASS_RSSI_CONFIG_TOPIC "' MQTT topic, '" HASS_RSSI_CONFIG "' topic value");
-      #endif
-    }
-    
-    // Publish Home Assistant status config topic
-    if (!mqtt.publish(HASS_STATUS_CONFIG_TOPIC, HASS_STATUS_CONFIG, true, 1)) {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Failed to publish '" HASS_STATUS_CONFIG_TOPIC "' MQTT topic");
-      #endif
-    } else {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Published '" HASS_STATUS_CONFIG_TOPIC "' MQTT topic, '" HASS_STATUS_CONFIG "' topic value");
-      #endif
-    }
-    
-    if (resetOccurred) {                              // Hardware reset occurred
-      // reset just recently occurred
-      if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset Hardware", true, 1)) {
-        #ifdef ENABLE_SERIAL
-        Serial.println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset Hardware' topic value");
-        #endif
-      } else {
-        #ifdef ENABLE_SERIAL
-        Serial.println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset Hardware' topic value");
-        #endif
-      }
-    } else if (wifiConnectOccurred) {                 // WiFi Connected
-      // Wifi just connected
-      if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset WiFi Connect", true, 1)) {
-        #ifdef ENABLE_SERIAL
-        Serial.println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset WiFi Connect' topic value");
-        #endif
-      } else {
-        #ifdef ENABLE_SERIAL
-        Serial.println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset WiFi Connect' topic value");
-        #endif
-      }
-    } else if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset MQTT Connect", true, 1)) {
-      // since no reset or WiFi connect occurred then it was a MQTT Connect
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset MQTT Connect' topic value");
-      #endif
-    } else {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset MQTT Connect' topic value");
-      #endif
-    }
-    
-    // wait a bit before updating HASS_STATUS_STATE_TOPIC again
-    delay(100);
-    
-    // clear the connect reason flags
-    resetOccurred = false;
-    wifiConnectOccurred = false;
-    
-    // running successfully
-    if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Ready", true, 1)) {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Ready' topic value");
-      #endif
-    } else {
-      #ifdef ENABLE_SERIAL
-      Serial.println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Ready' topic value");
-      #endif
-    }
-    #ifdef ENABLE_SERIAL
-    Serial.println("WiFi Gate Controller is ready!\n");
-    #endif
-  }
-
-  // if we got here then we were successfull
-  return true;
-}
-
-// MQTT subscribed message received
-void messageReceived(MQTTClient *client, char topic[], char payload[], int payload_length) {
-  if (strcmp(topic, HASS_GATE_COMMAND_TOPIC) == 0) {
-    // gate command has been received
-    if (outputDeadband == LOW) {
-      // no other output is in progress
-      if (strcmp(payload, "OPEN") == 0) {             // time to OPEN the gate
-        digitalWrite(output_pins[OPEN_BUTTON], HIGH); // make OPEN Button active
-        outputState[OPEN_BUTTON] = HIGH;              // indicate to loop() that OPEN Button output is active
-        lastOutputTime[OPEN_BUTTON] = millis();       // start the timer used to cancel output
-        outputDeadband = HIGH;                        // contact closure in progress no other contact closures can occur
-        lastOutputDeadbandTime = lastOutputTime[OPEN_BUTTON]; // start a timer for deadband timeout
-        #ifdef ENABLE_SERIAL
-        Serial.println("Accepted 'OPEN' MQTT Command");
-        #endif
-      } else if (strcmp(payload, "CLOSE") == 0) {     // time to CLOSE the gate
-        digitalWrite(output_pins[CLOSE_BUTTON], HIGH);// make CLOSE Button active
-        outputState[CLOSE_BUTTON] = HIGH;             // indicate to loop() that CLOSE Button output is active
-        lastOutputTime[CLOSE_BUTTON] = millis();      // start the timer used to cancel output
-        outputDeadband = HIGH;                        // contact closure in progress no other contact closures can occur
-        lastOutputDeadbandTime = lastOutputTime[CLOSE_BUTTON]; // start a timer for deadband timeout
-        #ifdef ENABLE_SERIAL
-        Serial.println("Accepted 'CLOSE' MQTT Command");
-        #endif
-     } else if (strcmp(payload, "STOP") == 0) {      // time to TOGGLE the gate
-        digitalWrite(output_pins[TOGGLE_BUTTON], HIGH); // make TOGGLE Button active
-        outputState[TOGGLE_BUTTON] = HIGH;            // indicate to loop() that TOGGLE Button output is active
-        lastOutputTime[TOGGLE_BUTTON] = millis();     // start the timer used to cancel output
-        outputDeadband = HIGH;                        // contact closure in progress no other contact closures can occur
-        lastOutputDeadbandTime = lastOutputTime[TOGGLE_BUTTON]; // start a timer for deadband timeout
-        #ifdef ENABLE_SERIAL
-        Serial.println("Accepted 'STOP' MQTT Command");
-        #endif
-      }
-    } else {
-      // another output is in progress so we ignore this command
-      if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Ignored MQTT Command", true, 1)) {
-        #ifdef ENABLE_SERIAL
-        Serial.println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic");
-        #endif
-      } else {
-        #ifdef ENABLE_SERIAL
-        Serial.println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Ignored MQTT Command' topic value");
-        #endif
-      }
-      #ifdef ENABLE_SERIAL
-      Serial.print("Ignored '");
-      Serial.print(payload);
-      Serial.println("' MQTT Command");
-      #endif
-    }
-  }
-}
-
-// Reset the watchdog timer
-inline void watchdogReset(void) {
-  #ifdef ENABLE_WATCHDOG
-  if (!WDT->STATUS.bit.SYNCBUSY)                // Check if the WDT registers are synchronized
-    REG_WDT_CLEAR = WDT_CLEAR_CLEAR_KEY;        // Clear the watchdog timer
-  #endif
-}
-// Prints current WiFi Status and RSSI
-void printWiFiStatus(bool withLF) {
-  #ifdef ENABLE_SERIAL
-  Serial.print("Status: ");
-  switch (WiFi.status()) {
-    case WL_NO_SHIELD: Serial.print("No Shield"); break;
-    case WL_IDLE_STATUS: Serial.print("Idle Status"); break;
-    case WL_NO_SSID_AVAIL: Serial.print("No SSID Available"); break;
-    case WL_SCAN_COMPLETED: Serial.print("Scan Completed"); break;
-    case WL_CONNECTED: Serial.print("Connected"); break;
-    case WL_CONNECT_FAILED: Serial.print("Connect Failed"); break;
-    case WL_CONNECTION_LOST: Serial.print("Connection Lost"); break;
-    case WL_DISCONNECTED: Serial.print("Disconnected"); break;
-  }
-  Serial.print(", RSSI: ");
-  Serial.print(WiFi.RSSI());
-  Serial.print("dBm");
-  if (withLF)
-    Serial.println(".");
-  else
-    Serial.print(", ");
-  #endif
-}
-

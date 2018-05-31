@@ -20,6 +20,8 @@ There are a few build defines that control how the sketch is built.
 //#define ENABLE_OTA_UPDATES
 // Enable Serial on USB
 //#define ENABLE_SERIAL
+// Enable Low Power Mode on WiFi
+#define ENABLE_WIFI_LOW_POWER
 // Current Version
 #define VERSION                   "0.1"
 ```
@@ -27,6 +29,7 @@ There are a few build defines that control how the sketch is built.
 * When "ENABLE_WATCHDOG" is defined the Watchdog Timer is enabled with a 16 second timeout. This will reset the ARM processor is something goes bad.
 * When "ENABLE_OTA_UPDATES" is defined the sketch can be updated using Arduino's Over-The-Air Update capability.
 * When "ENABLE_SERIAL" is defined then status information is sent out the serial connection which in this case is the USB port. Otherwise the serial port won't even be enabled.
+* When "ENABLE_WIFI_LOW_POWER" is defined the WINC1500 module is set to Low Power Mode. This can drop the current requirements of the module to a third or even less. Low Power Mode reduces the transmit frequency to the beacon interval and may also cause the module to hang occasionally.
 
 The arduino_secrets.h file is not included on Github. You must create and edit it to meet your configuration.
 
