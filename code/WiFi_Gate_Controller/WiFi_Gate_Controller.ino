@@ -63,7 +63,7 @@
 // Enable Watchdog Timer
 #define ENABLE_WATCHDOG
 // Enable OTA updates
-//#define ENABLE_OTA_UPDATES
+#define ENABLE_OTA_UPDATES
 // Enable Serial on USB
 //#define ENABLE_SERIAL
 // Enable Low Power Mode on WiFi
@@ -835,7 +835,10 @@ void loop() {
         lastTempRequest = millis();                   // start tracking conversion time
       } else if ((millis() - lastTempRequest) > 1000) {
         // conversion is complete
-        lastTempUpdate = millis();                    // set timer for next time to start temperature conversion
+        lastTempUpdate += TEMP_RATE;                  // set timer for next time to start temperature conversion
+        if (lastTempUpdate > millis()) {
+          lastTempUpdate = millis();                  // don't want to play catch up
+        }
         lastTemp = sensors.getTempCByIndex(0);        // retrieve the temperature from the first temp sensor
         dtostrf(lastTemp, 1, 1, tempStr);             // convert temperature to string
         // publish the just read temperture
