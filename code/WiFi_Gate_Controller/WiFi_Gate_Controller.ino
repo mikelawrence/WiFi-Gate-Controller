@@ -328,24 +328,14 @@ bool connect() {
     }
     
     // wait a bit before updating HASS_STATUS_STATE_TOPIC again
-    delay(500);
+    delay(1000);
     
     // clear the connect reason flags
     resetOccurred = false;
     wifiConnectOccurred = false;
     
-    // running successfully
-    if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Ready", true, 1)) {
-      Println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Ready' topic value");
-    } else {
-      Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Ready' topic value");
-    }
-    
     Println("WiFi Gate Controller is ready!\n");
   }
-
-  // wait a bit before updating HASS_STATUS_STATE_TOPIC again
-  delay(500);
     
   // if we got here then we were successfull
   return true;
@@ -365,44 +355,32 @@ void messageReceived(MQTTClient *client, char topic[], char payload[], int paylo
         lastOutputTime[OPEN_BUTTON] = millis();       // start the timer used to cancel output
         outputDeadband = HIGH;                        // contact closure in progress no other contact closures can occur
         lastOutputDeadbandTime = lastOutputTime[OPEN_BUTTON]; // start a timer for deadband timeout
-        #ifdef ENABLE_SERIAL
         Println("Accepted 'OPEN' MQTT Command");
-        #endif
       } else if (strcmp(payload, "CLOSE") == 0) {     // time to CLOSE the gate
         digitalWrite(output_pins[CLOSE_BUTTON], HIGH);// make CLOSE Button active
         outputState[CLOSE_BUTTON] = HIGH;             // indicate to loop() that CLOSE Button output is active
         lastOutputTime[CLOSE_BUTTON] = millis();      // start the timer used to cancel output
         outputDeadband = HIGH;                        // contact closure in progress no other contact closures can occur
         lastOutputDeadbandTime = lastOutputTime[CLOSE_BUTTON]; // start a timer for deadband timeout
-        #ifdef ENABLE_SERIAL
         Println("Accepted 'CLOSE' MQTT Command");
-        #endif
      } else if (strcmp(payload, "STOP") == 0) {      // time to TOGGLE the gate
         digitalWrite(output_pins[TOGGLE_BUTTON], HIGH); // make TOGGLE Button active
         outputState[TOGGLE_BUTTON] = HIGH;            // indicate to loop() that TOGGLE Button output is active
         lastOutputTime[TOGGLE_BUTTON] = millis();     // start the timer used to cancel output
         outputDeadband = HIGH;                        // contact closure in progress no other contact closures can occur
         lastOutputDeadbandTime = lastOutputTime[TOGGLE_BUTTON]; // start a timer for deadband timeout
-        #ifdef ENABLE_SERIAL
         Println("Accepted 'STOP' MQTT Command");
-        #endif
       }
     } else {
       // another output is in progress so we ignore this command
       if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Ignored MQTT Command", true, 1)) {
-        #ifdef ENABLE_SERIAL
         Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic");
-        #endif
       } else {
-        #ifdef ENABLE_SERIAL
         Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Ignored MQTT Command' topic value");
-        #endif
       }
-      #ifdef ENABLE_SERIAL
       Print("Ignored '");
       Print(payload);
       Println("' MQTT Command");
-      #endif
     }
   }
 }
@@ -487,9 +465,10 @@ void setup() {
     // don't continue:
     while (true);
   }
-  #ifdef ENABLE_SERIAL
+  
   Println("WINC1500 Detected");
   
+  #ifdef ENABLE_SERIAL
   // Display Firmware Version
   String fv = WiFi.firmwareVersion();
   Print("  Firmware Version: ");
@@ -856,7 +835,7 @@ void loop() {
         lastTempRequest = millis();                   // start tracking conversion time
       } else if ((millis() - lastTempRequest) > 1000) {
         // conversion is complete
-        lastTempUpdate += TEMP_RATE;                  // set timer for next time to start temperature conversion
+        lastTempUpdate = millis();                    // set timer for next time to start temperature conversion
         lastTemp = sensors.getTempCByIndex(0);        // retrieve the temperature from the first temp sensor
         dtostrf(lastTemp, 1, 1, tempStr);             // convert temperature to string
         // publish the just read temperture
