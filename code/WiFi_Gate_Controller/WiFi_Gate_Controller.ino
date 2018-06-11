@@ -136,6 +136,10 @@ const int8_t output_pins[NUMBER_OUTPUTS] = {0, 1, 2, 3};
 const int8_t input_pins[NUMBER_INPUTS] = {PIN_A0, PIN_A1, PIN_A2, PIN_A3, 4, 5, PIN_A4, 7};
 // Enumeration for gate state which also keeps track of gate opening or closing
 enum GateStateEnum {GS_UNKNOWN, GS_RESET, GS_ERROR, GS_CLOSED, GS_OPEN, GS_CLOSING, GS_OPENING}; 
+// time in milliseconds that a WiFi connection is unresponsive before reconnecting
+#define WIFI_CONNECTION_RETRY_TIME 5*60*1000
+// time in milliseconds between MQTT connection attempts
+#define MQTT_CONNECTION_DELAY_TIME 10*1000
 
 // Logging/Printing defines
 #ifdef ENABLE_SERIAL
@@ -145,7 +149,6 @@ enum GateStateEnum {GS_UNKNOWN, GS_RESET, GS_ERROR, GS_CLOSED, GS_OPEN, GS_CLOSI
 #define Print(...)
 #define Println(...)
 #endif
-
 
 /******************************************************************
  * Global Variables
@@ -171,8 +174,6 @@ uint32_t lastOutputDeadbandTime = 0;
 int8_t   inputState[NUMBER_INPUTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 // last Gate open/closed state true/false
 int8_t   lastGateOpenState = -1;
-// keeps track of how long we are not connected
-uint32_t lastDisconnectTime;
 // when true a reset occurred recently
 bool     resetOccurred = true;
 // when true WiFi was recently disconnected from the network
@@ -194,6 +195,9 @@ inline void watchdogReset(void) {
  * Verify/ Make WiFi and MQTT connections
  ******************************************************************/
 bool connect() {
+  static uint8_t  lastMQTTRetryCount = 0;
+  static uint32_t lastMQTTRetryTime = millis() - 10*1000;
+  static uint32_t lastDisconnectTime;
   byte mac[6];
   IPAddress ip;
   int32_t status = WiFi.status();
@@ -204,9 +208,13 @@ bool connect() {
   if (status != WL_CONNECTED) {
     // Wifi is disconnected
     wifiDisconnectOccurred = true;                    // we were disconnected
-    if (millis() - lastDisconnectTime > 15 * 60 * 1000) {
-      // it's been 15 minutes since we were last connected, turn off WiFi module
-      WiFi.end();
+    if (abs(millis() - lastDisconnectTime) > 4*WIFI_CONNECTION_RETRY_TIME) {
+      // something went wrong with lastDisconnectTime, reset
+      lastDisconnectTime = millis() - WIFI_CONNECTION_RETRY_TIME - 10;
+    }
+    if (millis() - lastDisconnectTime > WIFI_CONNECTION_RETRY_TIME) {
+      // it's been too long since we were last connected
+      WiFi.end();                                     // turn off WiFi module
       // Turn on WINC1500 WiFi module and connect to network again
       WiFi.begin(SECRET_SSID, SECRET_PASSWORD);
       // Reconnect in another 15 minutes
@@ -260,17 +268,37 @@ bool connect() {
   
   // WiFi is connected, see if MQTT is connected
   if (!mqtt.connected()) {
+    if (++lastMQTTRetryCount >= WIFI_CONNECTION_RETRY_TIME/MQTT_CONNECTION_DELAY_TIME) {
+      // it's been too long since we had an MQTT connection, turn off WiFi module
+      WiFi.end(); 
+      // Turn on WINC1500 WiFi module and connect to network again
+      WiFi.begin(SECRET_SSID, SECRET_PASSWORD);
+      lastMQTTRetryTime = millis();                   // restart MQTT retry time
+      lastMQTTRetryCount = 0;                         // MQTT retry count will need to start over
+      return false;                                   // we are not connected
+    }
+    if (abs(millis() - lastMQTTRetryTime) > 4*MQTT_CONNECTION_DELAY_TIME) {
+      // something went wrong with lastMQTTRetryTime, reset
+      lastMQTTRetryTime = millis() - MQTT_CONNECTION_DELAY_TIME - 1;
+    }
     // we are not currently connected to MQTT Server
-    Print("Connecting to MQTT Server:" MQTT_SERVER "...");
+    if (millis() - lastMQTTRetryTime <= MQTT_CONNECTION_DELAY_TIME) {
+      // not time to retry MQTT connection
+      return false;
+    }
+    // time to retry server connection
+    Println("Connecting to MQTT Server:" MQTT_SERVER "...");
     if (mqtt.connect(BOARD_NAME, MQTT_USERNAME, MQTT_PASSWORD)) {
       // successfully connected to MQTT server
       Println("Success");
     } else {
       // failed to connect to MQTT server
       Println("Failed");
+      ++lastMQTTRetryCount;
+      lastMQTTRetryTime = millis();
       return false;
     }
-    
+        
     // Subscribe to Home Assistant command topic
     if (!mqtt.subscribe(HASS_GATE_COMMAND_TOPIC)) {
       Println("  Failed to subscribe '" HASS_GATE_COMMAND_TOPIC "' MQTT topic");
@@ -320,11 +348,13 @@ bool connect() {
       } else {
         Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset WiFi Connect' topic value");
       }
-    } else if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset MQTT Connect", true, 1)) {
-      // since no reset or WiFi connect occurred then it was a MQTT Connect
-      Println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset MQTT Connect' topic value");
-    } else {
-      Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset MQTT Connect' topic value");
+/*    } else {
+      if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset MQTT Connect", true, 1)) {
+        // since no reset or WiFi connect occurred then it was a MQTT Connect
+        Println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset MQTT Connect' topic value");
+      } else {
+        Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset MQTT Connect' topic value");
+      } */
     }
     
     // wait a bit before updating HASS_STATUS_STATE_TOPIC again
@@ -335,7 +365,14 @@ bool connect() {
     wifiConnectOccurred = false;
     
     Println("WiFi Gate Controller is ready!\n");
+
+    // we had to reconnect to MQTT Broker make sure at least one false is returned
+    return false;
   }
+  
+  // be ready for next MQTT retry time
+  lastMQTTRetryTime = millis();
+  lastMQTTRetryCount = 0;
     
   // if we got here then we were successfull
   return true;
@@ -479,8 +516,6 @@ void setup() {
         
   // Turn on WINC1500 WiFi module and connect to network now
   WiFi.begin(SECRET_SSID, SECRET_PASSWORD);
-  lastDisconnectTime = millis();
-  Println("Connecting to SSID: " SECRET_SSID "...");
   
   // MQTT setup
   mqtt.setOptions(65, true, 5000);                    // keep Alive, Clean Session, Timeout
