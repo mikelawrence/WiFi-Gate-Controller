@@ -2,9 +2,11 @@
 The WiFi Gate Controller Sketch is written in C. It interfaces with a US Automation Gate Controller and will detect gate position and open/close the gate. The sketch is a discoverable cover and sensor for [Home Assistant](https://home-assistant.io/), an open-source home automation platform running on Python. [MQTT](http://mqtt.org/), a machine-to-machine (M2M)/"Internet of Things" connectivity protocol, is the basis of communication with Home Assistant.
 
 ## Status
-WiFi is working nicely. Home Assistant detects and properly controls all MQTT devices: Gate Cover, Temperature Sensor, RSSI Sensor, and Status Sensor.
-
-The biggest issue at this time is occasionally the Watchdog Timer resets the sketch. This can be seen via Home Assistant when the Gate Status Sensor contains 'Reset'. This reset occurs almost daily when "ENABLE_SERIAL" is defined and less frequently when not defined.
+This software is in the testing stage and is connected to my gate.
+* Experienced the controller going silent on the network (loop is still running because the LED will light when the gate is opened with a switch). It appears that the WiFi module can loose connection and still show the status as connected. Added MQTT connect timeout which stops the WiFi connection. This stop cause the WiFi reconnect and hopefully fix the problem automatically. The current build has the fix and testing is in progress.
+* Home Assistant automatically detects all MQTT devices: Gate Cover, Temperature Sensor, RSSI Sensor, and Status Sensor.
+* Control of the gate via MQTT works.
+* Status reporting via MQTT works.
 
 # Setup
 ## Sketch Setup
