@@ -3,7 +3,7 @@ The WiFi Gate Controller Sketch is written in C. It interfaces with a US Automat
 
 ## Status
 This software is in the testing stage and is connected to my gate.
-* Experienced the controller going silent on the network (loop is still running because the LED will light when the gate is opened with a switch). It appears that the WiFi module can loose connection and still show the status as connected. Added MQTT connect timeout which stops the WiFi connection. This stop cause the WiFi reconnect and hopefully fix the problem automatically. The current build has the fix and testing is in progress.
+* This is now fixed. Using WiFi Low Power mode may have contributed to the problem. Experienced the controller going silent on the network (pump state machine continues to work correctly). It appears that the WiFi module can loose connection and still show the status as connected. Added MQTT connect timeout which stops the WiFi connection. This stop causes the WiFi reconnect and hopefully fix the problem automatically. Also turned off WiFi Low Power Mode.
 * Home Assistant automatically detects all MQTT devices: Gate Cover, Temperature Sensor, RSSI Sensor, and Status Sensor.
 * Control of the gate via MQTT works.
 * Status reporting via MQTT works.
