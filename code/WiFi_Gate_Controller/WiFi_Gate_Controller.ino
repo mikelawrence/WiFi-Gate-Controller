@@ -4,14 +4,17 @@
   This code interfaces a remote gate opener (US Automation) using a custom 
   SAMD/ATWINC1500C board. The board is compatible with an Arduino MKR1000.
 
+  Built with Arduino IDE 1.8.7
+  
   The following libraries must be installed using Library Manager:
   
-    WiFi101 by Arduino
-    WiFiOTA by Arduino
-    MQTT by Joel Gaehwiler
-    OneWire by Paul Stoffregen and many others
-    DallasTemperature by Miles Burton and others
-  
+    WiFi101 version 0.15.3 by Arduino
+      WINC1501 Model B firmware version 19.5.4
+    WiFiOTA version 1.0.2 by Arduino
+    MQTT version 2.3.3 by Joel Gaehwiler
+    OneWire version 2.3.4 by Paul Stoffregen and many others
+    DallasTemperature version 3.8.0 by Miles Burton and others
+
   Copyright (c) 2018 Mike Lawrence
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -69,7 +72,7 @@
 // Enable Low Power Mode on WiFi
 //#define ENABLE_WIFI_LOW_POWER
 // Current Version
-#define VERSION                   "0.3"
+#define VERSION                   "0.4"
 
 /******************************************************************
  * Application defines
