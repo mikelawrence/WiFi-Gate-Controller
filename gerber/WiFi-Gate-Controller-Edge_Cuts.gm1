@@ -1,14 +1,13 @@
-G04 #@! TF.GenerationSoftware,KiCad,Pcbnew,(5.0.0-rc2-dev-390-g2bfbff1)*
-G04 #@! TF.CreationDate,2018-04-26T20:39:25-05:00*
-G04 #@! TF.ProjectId,WiFi-Gate-Controller,576946692D476174652D436F6E74726F,rev?*
+G04 #@! TF.GenerationSoftware,KiCad,Pcbnew,(5.1.2-1)-1*
+G04 #@! TF.CreationDate,2019-05-05T13:35:30-05:00*
+G04 #@! TF.ProjectId,WiFi-Gate-Controller,57694669-2d47-4617-9465-2d436f6e7472,rev?*
 G04 #@! TF.SameCoordinates,Original*
 G04 #@! TF.FileFunction,Profile,NP*
 %FSLAX46Y46*%
 G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
-G04 Created by KiCad (PCBNEW (5.0.0-rc2-dev-390-g2bfbff1)) date Thursday, April 26, 2018 at 08:39:25 PM*
+G04 Created by KiCad (PCBNEW (5.1.2-1)-1) date 2019-05-05 13:35:30*
 %MOMM*%
 %LPD*%
-G01*
 G04 APERTURE LIST*
 %ADD10C,0.100000*%
 G04 APERTURE END LIST*

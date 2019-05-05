@@ -3,11 +3,16 @@ After years of using weak garage door openers and trying to position them just r
 
 This board is designed for and tested with a US Automation Gate Opener.
 
-This PCB is designed using [KiCad 5.0.0](http://kicad-pcb.org).
+This PCB design uses my custom libraries available here [Mike's KiCad Libraries](http://kicad-pcb.org).
+
+This PCB is designed using [KiCad 5.1.2](http://kicad-pcb.org).
 
 _Note: The LMZ21700 Simple Switcher, SAMD21G18 ARM Processor, and ATWINC1500 WiFi Module have exposed pads on the bottom which requires either a reflow oven or hot air to solder properly._
 
 ## Status
+* Rev 1.1 PCB has been updated to support KiCad 5.1 libraries. Some footprints changed when libraries were updated but changes were minimal. This board has NOT been tested.
+  * Order the PCB from [OSH Park](https://oshpark.com/shared_projects/2w66ZpSF).
+  * Order the parts from Mouser using this [Shared BOM](https://www.mouser.com/ProjectManager/ProjectDetail.aspx?AccessID=595b0bc14b).
 * Rev 1.0 PCB has been been ordered, assembled, and tested. Hardware is fully operational.
   * Order the PCB from [OSH Park](https://oshpark.com/shared_projects/rpQhhUss).
   * Order the parts from Mouser using this [Shared BOM](https://www.mouser.com/ProjectManager/ProjectDetail.aspx?AccessID=595b0bc14b).
@@ -20,7 +25,7 @@ _Note: The LMZ21700 Simple Switcher, SAMD21G18 ARM Processor, and ATWINC1500 WiF
 All components are powered by a 3.3VDC Simple Switcher from Texas Instruments (LMZ21700). Input power is 12VDC nominal with a range of 5V-17V. The with the switching power supply efficiency at about 80% the board current draws at the lowest 5mA and an average around 12mA. Peak current during transmit is about 100mA.
 
 ### Contact Inputs
-Contact inputs use a simple pullup to 5VDC and a Schmidt Trigger Inverter (SN74LVC2G14). Note: software debounce is still required. A high value pullup resistor and series resistor (both 100k) were selected to reduce current levels when accidental high voltages are applied to the input. The resistor pullups should be installed where needed. If connecting to a gate controller that already has an input pulled up leave the pullup resistors off. The inputs are 5V tolerant. ESD Protection devices are included to further protect the inputs. Due to the Schmidt Trigger Inverter the software sees a logic high when a contact is closed (shorted to -V).
+Contact inputs use a simple pull-up to 5VDC and a Schmidt Trigger Inverter (SN74LVC2G14). Note: software debounce is still required. A high value pull-up resistor and series resistor (both 100k) were selected to reduce current levels when accidental high voltages are applied to the input. The resistor pull-ups should be installed where needed. If connecting to a gate controller that already has an input pulled up leave the pull-up resistors off. The inputs are 5V tolerant. ESD Protection devices are included to further protect the inputs. Due to the Schmidt Trigger Inverter the software sees a logic high when a contact is closed (shorted to -V).
 
 ### Contact Outputs
 There are four contact outputs on the board which short to ground (-V) when activated. The switch is an overload protected Infineon Low-Side Automotive Switch (BTS3800SL). Each contact output has input circuitry identical to the contact inputs on the board. This allows detection of external contact closures for parallel wired contacts.

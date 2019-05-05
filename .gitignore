@@ -6,3 +6,4 @@
 *.zip
 code/WiFi_Gate_Controller/arduino_secrets.h
 code/Debug.txt
+fp-info-cache
