@@ -3,9 +3,9 @@ After years of using weak garage door openers and trying to position them just r
 
 This board is designed for and tested with a US Automation Gate Opener.
 
-This PCB design uses my custom libraries available here [Mike's KiCad Libraries](http://kicad-pcb.org).
+This PCB design uses my custom libraries available here [Mike's KiCad Libraries](https://github.com/mikelawrence/KiCad-Libraries).
 
-This PCB is designed using [KiCad 5.1.2](http://kicad-pcb.org).
+This PCB was designed with [KiCad 5.1.2](http://kicad-pcb.org).
 
 _Note: The LMZ21700 Simple Switcher, SAMD21G18 ARM Processor, and ATWINC1500 WiFi Module have exposed pads on the bottom which requires either a reflow oven or hot air to solder properly._
 
