@@ -1,39 +1,54 @@
-Reference, Quantity, Value, Footprint, Datasheet, Manufacturer, Part Number, Vendor, Vendor Part Number, Tolerance, Voltage
-C14 C20 ,2,"1uF","Capacitor_SMD:C_0603_1608Metric","","AVX","0603ZC105JAT2A","Mouser","581-0603ZC105JAT2A","5%","10V"
-C17 C16 ,2,"15pF","Capacitor_SMD:C_0603_1608Metric","","AVX","06035A150JAT2A","Mouser","581-06035A150J","5%","50V"
-C18 C13 C12 C11 C10 C15 C9 ,7,"0.1uF","Capacitor_SMD:C_0603_1608Metric","","Vishay","VJ0603Y104JXQPW1BC","Mouser","77-VJ0603Y104JXQPBC","5%","10V"
-C3 C4 C1 C2 ,4,"1nF","Capacitor_SMD:C_0603_1608Metric","","Vishay","VJ0603Y102KXAAC31","Mouser","77-VJ0603Y102KXAAC31","10%","50V"
-C5 ,1,"100uF","Capacitor_SMD:CP_Elec_8x10","","United Chemi-Con","EMVH350ADA101MHA0G","Mouser","661-EMVH350ADA101M","20%","35V"
-C6 C8 C19 ,3,"22uF","Capacitor_SMD:C_0805_2012Metric","","Taiyo Yuden","TMK212BBJ226MG-TT","Mouser","963-TMK212BBJ226MGTT","20%","25V"
-C7 ,1,"3.3nF","Capacitor_SMD:C_0603_1608Metric","","Vishay","VJ0603Y332JXQPW1BC","Mouser","77-VJ0603Y332JXQPBC","5%","10V"
-D1 D4 D5 D6 ,4,"NUP2105L","Package_TO_SOT_SMD:SOT-23","http://www.onsemi.com/pub_link/Collateral/NUP2105L-D.PDF","ON Semiconductor","SZNUP2105LT1G","Mouser","863-SZNUP2105LT1G","",""
-D10 ,1,"PRTR5V0U2X","Package_TO_SOT_SMD:SOT-143","","Nexperia","PRTR5V0U2X,215","Mouser","771-PRTR5V0U2X-T/R","",""
-D11 ,1,"Red","LED_SMD:LED_0603_1608Metric","","Lumex","SML-LX0603SRW-TR","Mouser","696-SML-LX0603SRW","",""
-D12 ,1,"Yellow","LED_SMD:LED_0603_1608Metric","","Lumex","SML-LX0603SYW-TR","Mouser","696-SML-LX0603SYW","",""
-D13 ,1,"Green","LED_SMD:LED_0603_1608Metric","","Lumex","SML-LX0603SGW-TR","Mouser","696-SML-LX0603SGW","",""
-D15 ,1,"Orange","LED_SMD:LED_0603_1608Metric","","Lumex","SML-LX0603SOW-TR","Mouser","696-SML-LX0603SOW","",""
-D3 D2 ,2,"DFLS130","Diode_SMD:D_PowerDI-123","","Diodes Inc","DFLS130LQ","Mouser","621-DFLS130L","",""
-D7 ,1,"SM15T33CA","Diode_SMD:D_SMC","","ST Micro","SM15T33CA","Mouser","511-SM15T33CA","",""
-D8 D9 D14 D16 D17 ,5,"TPD2E2U06","Package_TO_SOT_SMD:SOT-23","http://www.ti.com/lit/gpn/tpd2e2u06-q1","Texas Instruments","TPD2E2U06QDBZRQ1","Mouser","595-TPD2E2U06QDBZRQ1","",""
-J1 ,1,"Screw_Terminal_01x10","TerminalBlock_Phoenix:TerminalBlock_Phoenix_PT-3.5mm_10pol","","Phoenix","1731565","Mouser","651-1731565","",""
-J2 ,1,"USB_B_Micro","Connector_USB:USB_Micro-B_Wuerth_614105150721_Vertical_CircularHoles","","Wurth Electronics","614105150721","Mouser","710-614105150621","",""
-J3 ,1,"Cortex Debug","Connector_PinHeader_1.27mm:PinHeader_2x05_P1.27mm_Vertical_SMD","","Amphenol FCI","202112100010C4LF","Mouser","649-202112100010C4LF","",""
-JP1 ,1,"LED Disable","Connector_PinHeader_2.54mm:PinHeader_2x01_P2.54mm_Vertical","","Molex","22-03-2021","Mouser","538-22-03-2021","",""
-L3 L1 L2 L5 ,4,"1k@1MHz","Inductor_SMD:L_1206_3216Metric","","Murata","BLM31KN102SH1L","Mouser","81-BLM31KN102SH1L","",""
-L4 ,1,"470@1MHz","Inductor_SMD:L_0603_1608Metric","","Murata","BLM18PG471SN1D","Mouser","81-BLM18PG471SN1D","",""
-R1 ,1,"1.21M","Resistor_SMD:R_0603_1608Metric","","Yageo","RC0603FR-071M21L","Mouser","603-RC0603FR-071M21L","1%",""
-R14 ,1,"39","Resistor_SMD:R_0603_1608Metric","","Panasonic","ERJ-3EKF39R0V","Mouser","667-ERJ-3EKF39R0V","1%",""
-R16 ,1,"10k","Resistor_SMD:R_0603_1608Metric","","Panasonic","ERJ-3EKF1002V","Mouser","667-ERJ-3EKF1002V","1%",""
-R17 ,1,"330","Resistor_SMD:R_0603_1608Metric","","Panasonic","ERJ-3EKF3300V","Mouser","667-ERJ-3EKF3300V","1%",""
-R2 ,1,"383k","Resistor_SMD:R_0603_1608Metric","","Panasonic","ERJ-3EKF3833V","Mouser","667-ERJ-3EKF3833V","1%",""
-R3 ,1,"4.7k","Resistor_SMD:R_0603_1608Metric","","Panasonic","ERJ-3EKF4701V","Mouser","667-ERJ-3EKF4701V","1%",""
-R4 R5 R6 R10 R11 R13 R15 R18 R20 R25 R26 R23 R24 R21 R22 R27 ,16,"100k","Resistor_SMD:R_1206_3216Metric","","Panasonic","ERJ-P08J104V","Mouser","667-ERJ-P08J104V","5%",""
-R7 R8 R9 R12 ,4,"1k","Resistor_SMD:R_0603_1608Metric","","Panasonic","ERJ-3EKF1001V","Mouser","667-ERJ-3EKF1001V","1%",""
-SW1 ,1,"Reset","Button_Switch_SMD:SW_SPST_B3U-1000P","http://www.mouser.com/ds/2/307/en-b3u-3615.pdf","Omron","B3U-1000P","Mouser","653-B3U-1000P","",""
-U1 U3 U4 U6 ,4,"BTS3800SL","Package_TO_SOT_SMD-ML:Infineon_PG-SCT595-5-1","https://www.infineon.com/dgdl/Infineon-BTS3800SL-DS-v01_01-EN.pdf?fileId=5546d4625a888733015aa9b0af2a361e","Infineon","BTS3800SL","Mouser","726-BTS3800SL","",""
-U10 ,1,"SAMD21G18-M","Package_DFN_QFN:QFN-48-1EP_7x7mm_P0.5mm_EP5.15x5.15mm","http://www.microchip.com/downloads/en/DeviceDoc/40001882A.pdf","","ATSAMD21G18A-MUT","Mouser","556-ATSAMD21G18A-MUT","",""
-U2 ,1,"LMZ21700","Converter_DCDC-ML:Converter_DCDC_Texas-SIL0008E","http://www.ti.com/lit/ds/symlink/lmz21700.pdf","TI","LMZ21700SILR","Mouser","595-LMZ21700SILR","",""
-U5 ,1,"DS18B20U","Package_SO:MSOP-8_3x3mm_P0.65mm","https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf","Maxim","DS18B20U+","Mouser","700-DS18B20U","",""
-U8 ,1,"ATWINC1500-MR210UB","RF_Module-ML:Microchip_ATWINC1500-MR210XB","http://ww1.microchip.com/downloads/en/DeviceDoc/ATWINC15x0-MR210xB-IEEE-802.11-b-g-n-SmartConnect-IoT-Module-Data-Sheet-DS70005304C.pdf","Atmel","ATWINC1500-MR210UB1140","Mouser","579-C1500MR210UB1140","",""
-U9 U7 U12 U11 ,4,"74LVC2G14","Package_TO_SOT_SMD:SOT-23-6","","Texas Instruments","SN74LVC2G14DBVG4","Mouser","595-SN74LVC2G14DBVG4","",""
-Y1 ,1,"32.768kHz","Crystal-ML:Crystal_SMD_Abracon_ABS07-2Pin_3.2x1.5mm","","Abracon","ABS07-32.768KHZ-9-T","Mouser","815-ABS07-32.768K9T","",""
+Quantity,References,Description,Manufacturer,Part Number,Vendor,Vendor Part Number
+4,C1 C2 C3 C4,"CAP, 0603, 1000pF, 10%, X7R, 10V",Vishay,VJ0603Y102KXAAC31,Mouser,77-VJ0603Y102KXAAC31
+1,C5,"CAP, SMD 8X10, 20%, EC, 35V",United Chemi-Con,EMVH350ADA101MHA0G,Mouser,661-EMVH350ADA101M
+3,C6 C8 C19,"CAP, 0805, 22uf, 20%, X5R, 25V",Taiyo Yuden,TMK212BBJ226MG-TT,Mouser,963-TMK212BBJ226MGTT
+1,C7,"CAP, 0603, 3300pF, 5%, X7R, 10V",Vishay,VJ0603Y332JXQPW1BC,Mouser,77-VJ0603Y332JXQPBC
+7,C9 C10 C11 C12 C13 C15 C18,"CAP, 0603, 0.1uF, 20%, X7R, 10V",Vishay,VJ0603Y104JXQPW1BC,Mouser,77-VJ0603Y104JXQPBC
+2,C14 C20,"CAP, 0603, 1uF, 10%, X7R, 10V",AVX,0603ZC105JAT2A,Mouser,581-0603ZC105JAT2A
+2,C16 C17,"CAP, 0603, 15pF, 5%, C0G, 50V",AVX,06035A150JAT2A,Mouser,581-06035A150J
+4,D1 D4 D5 D6,"TVS, SOT23, ESD Protection, CAN, 24V",ON Semiconductor,SZNUP2105LT1G,Mouser,863-SZNUP2105LT1G
+2,D2 D3,"DIO, PowerDI123, Schottky Rectifier, 30V, 1A",Diodes Inc,DFLS130LQ,Mouser,621-DFLS130L
+1,D7,"TVS, SMC, Transil, 1500W, 33V",ST Micro,SM15T33CA,Mouser,511-SM15T33CA
+5,D8 D9 D14 D16 D17,"TVS, SOT23, ESD TVS Protection, Dual",Texas Instruments,TPD2E2U06QDBZRQ1,Mouser,595-TPD2E2U06QDBZRQ1
+1,D10,"TVS, SOT23, ESD Protection, USB",Nexperia,"PRTR5V0U2X,215",Mouser,771-PRTR5V0U2X-T/R
+1,D11,"LED, 0603, Red",Lumex,SML-LX0603SRW-TR,Mouser,696-SML-LX0603SRW
+1,D12,"LED, 0603, Yellow",Lumex,SML-LX0603SYW-TR,Mouser,696-SML-LX0603SYW
+1,D13,"LED, 0603, Green",Lumex,SML-LX0603SGW-TR,Mouser,696-SML-LX0603SGW
+1,D15,"LED, 0603, Orange",Lumex,SML-LX0603SOW-TR,Mouser,696-SML-LX0603SOW
+1,J1,"CON, THT, Terminal Block, Pluggable, 3.5mm, 10 Pos",Phoenix,1731565,Mouser,651-1731565
+1,J2,"CON, THT, Micro USB 2.0 Type AB, Vertical",Wurth Electronics,614105150721,Mouser,710-614105150621
+1,J3,"CON, SMD, 1.27mm Header, Dual Row, Vertical, 10 Pos",Amphenol FCI,202112100010C4LF,Mouser,649-202112100010C4LF
+1,JP1,"CON, THT, 2.54mm Header, Single Row, Vertical, 2 Pos",Molex,22-03-2021,Mouser,538-22-03-2021
+4,L1 L2 L3 L5,"BEAD, 1206, 1k@100MHz, 2A",Murata,BLM31KN102SH1L,Mouser,81-BLM31KN102SH1L
+1,L4,"BEAD, 0603, 470R@100MHz, 1A",Murata,BLM18PG471SN1D,Mouser,81-BLM18PG471SN1D
+1,R1,"RES, 0603, 1.21M, 1%, T100",Yageo,RC0603FR-071M21L,Mouser,603-RC0603FR-071M21L
+1,R2,"RES, 0603, 383k, 1%, T100",Panasonic,ERJ-3EKF3833V,Mouser,667-ERJ-3EKF3833V
+1,R3,"RES, 0603, 4.7k, 1%, T100",Panasonic,ERJ-3EKF4701V,Mouser,667-ERJ-3EKF4701V
+16,R4 R5 R6 R10 R11 R13 R15 R18 R20 R21 R22 R23 R24 R25 R26 R27,"RES, 1206, 100k, 5%, T200",Panasonic,ERJ-P08J104V,Mouser,667-ERJ-P08J104V
+4,R7 R8 R9 R12,"RES, 0603, 1k, 1%, T100",Panasonic,ERJ-3EKF1001V,Mouser,667-ERJ-3EKF1001V
+1,R14,"RES, 0603, 39R, 1%, T100",Panasonic,ERJ-3EKF39R0V,Mouser,667-ERJ-3EKF39R0V
+1,R16,"RES, 0603, 10k, 1%, T100",Panasonic,ERJ-3EKF1002V,Mouser,667-ERJ-3EKF1002V
+1,R17,"RES, 0603, 330R, 1%, T100",Panasonic,ERJ-3EKF3300V,Mouser,667-ERJ-3EKF3300V
+1,SW1,"SW, SMD, Push Button",Omron,B3U-1000P,Mouser,653-B3U-1000P
+4,U1 U3 U4 U6,"IC, SCT595, Smart Low Side Switch, 41V, 350mA",Infineon,BTS3800SL,Mouser,726-BTS3800SL
+1,U2,"MODULE, SMD, Simple Switcher, 17V, 650mA",TI,LMZ21700SILR,Mouser,595-LMZ21700SILR
+1,U5,"IC, MSOP8, 1-Wire Temperature Sensor",Maxim,DS18B20U+,Mouser,700-DS18B20U
+4,U7 U9 U11 U12,"IC, SOT23-6, Dual inverting Schmitt trigger",Texas Instruments,SN74LVC2G14DBVG4,Mouser,595-SN74LVC2G14DBVG4
+1,U8,"MODULE, SMD, WiFi, u.FL connector",Atmel,ATWINC1500-MR210UB1140,Mouser,579-C1500MR210UB1140
+1,U10,"IC, QFN44, MCU, ARM, 256kB Flash, 32kB SRAM, 48MHz",,ATSAMD21G18A-MUT,Mouser,556-ATSAMD21G18A-MUT
+1,Y1,"XTL, SMD, 32.768kHz",Abracon,ABS07-32.768KHZ-9-T,Mouser,815-ABS07-32.768K9T
+
+
+
+
+
+Component Groups:,38
+Component Count:,86
+Fitted Components:,86
+Number of PCBs:,1
+Total components:,86
+Schematic Version:,1.1
+Schematic Date:,May 2019
+BoM Date:,"Thursday, May 16, 2019 at 06:02:52 PM"
+Schematic Source:,/Users/mike/Documents/KiCad/WiFi-Gate-Controller/WiFi-Gate-Controller.sch
+KiCad Version:,Eeschema (5.1.2-1)-1
