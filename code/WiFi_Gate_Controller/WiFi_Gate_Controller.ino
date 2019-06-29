@@ -40,9 +40,10 @@
 #include <WiFi101.h>
 #include <WiFi101OTA.h>
 #include <MQTT.h>
-#include <OneWire.h> 
+#include <OneWire.h>
 #include <DallasTemperature.h>
 #include <avr/dtostrf.h>
+#include "WiFi_Gate_Controller.h"
 #include "arduino_secrets.h"
 /******************************************************************
  * Definitions in arduino_secrets.h
@@ -61,97 +62,18 @@
 */
 
 /******************************************************************
- * Build defines
+ * Defines, constants and enumerations
  ******************************************************************/
-// Enable Watchdog Timer
-#define ENABLE_WATCHDOG
-// Enable OTA updates
-#define ENABLE_OTA_UPDATES
-// Enable Serial on USB
-#define ENABLE_SERIAL
-// Enable Low Power Mode on WiFi
-//#define ENABLE_WIFI_LOW_POWER
-// Current Version
-#define VERSION                   "0.4"
-
-/******************************************************************
- * Application defines
- ******************************************************************/
-// Name of this board, each board should be unique
-// Used as MQTT Client ID, HASS Name, and OTA Name
-#define BOARD_NAME                "Front Gate"
-// input debounce time in milliseconds
-#define DEBOUNCE_TIME             50
-// output contact time in milliseconds
-#define CONTACT_TIME              500
-// output contact dead time between contact closures in milliseconds
-#define CONTACT_DEADBAND_TIME     100
-// temperature measurement time in milliseconds, Must be greater than 5 seconds
-#define TEMP_RATE                 1*60*1000
-
-/******************************************************************
- * Home Assistant MQTT Defines
- ******************************************************************/
-#define HASS_PREFIX               "hass"
-#define HASS_GATE_NAME            "front_gate"
-// HASS defines below here should not be modified
-#define HASS_GATE_CONFIG_TOPIC    HASS_PREFIX "/cover/" HASS_GATE_NAME "/gate/config"
-#define HASS_GATE_STATE_TOPIC     HASS_PREFIX "/cover/" HASS_GATE_NAME "/gate/state"
-#define HASS_GATE_COMMAND_TOPIC   HASS_PREFIX "/cover/" HASS_GATE_NAME "/gate/set"
-#define HASS_GATE_CONFIG          "{ \"name\": \"" BOARD_NAME "\", \"command_topic\": \"" HASS_GATE_COMMAND_TOPIC \
-                                  "\", \"state_topic\": \"" HASS_GATE_STATE_TOPIC "\", \"qos\": 1, \"retain\": false }"
-#define HASS_TEMP_CONFIG_TOPIC    HASS_PREFIX "/sensor/" HASS_GATE_NAME "/temperature/config"
-#define HASS_TEMP_STATE_TOPIC     HASS_PREFIX "/sensor/" HASS_GATE_NAME "/temperature/state"
-#define HASS_TEMP_CONFIG          "{ \"name\": \"" BOARD_NAME " Temperature\", \"state_topic\": \"" HASS_TEMP_STATE_TOPIC \
-                                  "\", \"unit_of_measurement\": \"°C\" }"
-#define HASS_RSSI_CONFIG_TOPIC    HASS_PREFIX "/sensor/" HASS_GATE_NAME "/rssi/config"
-#define HASS_RSSI_STATE_TOPIC     HASS_PREFIX "/sensor/" HASS_GATE_NAME "/rssi/state"
-#define HASS_RSSI_CONFIG          "{ \"name\": \"" BOARD_NAME " RSSI\", \"state_topic\": \"" HASS_RSSI_STATE_TOPIC \
-                                  "\", \"unit_of_measurement\": \"dBm\" }"
-#define HASS_STATUS_CONFIG_TOPIC  HASS_PREFIX "/sensor/" HASS_GATE_NAME "/status/config"
-#define HASS_STATUS_STATE_TOPIC   HASS_PREFIX "/sensor/" HASS_GATE_NAME "/status/state"
-#define HASS_STATUS_CONFIG        "{ \"name\": \"" BOARD_NAME " Status\", \"state_topic\": \"" HASS_STATUS_STATE_TOPIC "\" }"
-
-/******************************************************************
- * Board Defines
- ******************************************************************/
-// Output defines
-#define NUMBER_OUTPUTS            4
-#define OPEN_BUTTON               0
-#define CLOSE_BUTTON              1
-#define TOGGLE_BUTTON             2
-#define UNUSED_BUTTON             3
-// Input defines
-#define NUMBER_INPUTS             8
-#define OPEN_BUTTON_SENSE         0
-#define CLOSE_BUTTON_SENSE        1
-#define UNUSED_BUTTON_SENSE       2
-#define TOGGLE_BUTTON_SENSE       3
-#define OPEN_LIMIT_SENSE          4
-#define CLOSE_LIMIT_SENSE         5
-#define MAILBOX_SENSE             6
-#define DROPBOX_SENSE             7
-// LED
-#define BOARD_LED                 LED_BUILTIN
-// pin number array for the four outputs on this board (pins are D0, D1, D2, D3)
-const int8_t output_pins[NUMBER_OUTPUTS] = {0, 1, 2, 3};
-// pin number array for the eight inputs on this board (pins are A0, A1, A2, A3, D4, D5, A4, D7)
-const int8_t input_pins[NUMBER_INPUTS] = {PIN_A0, PIN_A1, PIN_A2, PIN_A3, 4, 5, PIN_A4, 7};
-// Enumeration for gate state which also keeps track of gate opening or closing
-enum GateStateEnum {GS_UNKNOWN, GS_RESET, GS_ERROR, GS_CLOSED, GS_OPEN, GS_CLOSING, GS_OPENING}; 
 // time in milliseconds that a WiFi connection is unresponsive before reconnecting
 #define WIFI_CONNECTION_RETRY_TIME 5*60*1000
 // time in milliseconds between MQTT connection attempts
 #define MQTT_CONNECTION_DELAY_TIME 10*1000
-
-// Logging/Printing defines
-#ifdef ENABLE_SERIAL
-#define Print(...)                Serial.print(__VA_ARGS__)
-#define Println(...)              Serial.println(__VA_ARGS__)
-#else
-#define Print(...)
-#define Println(...)
-#endif
+// Enumeration for gate state which also keeps track of gate opening or closing
+enum GateStateEnum {GS_UNKNOWN, GS_RESET, GS_ERROR, GS_CLOSED, GS_OPEN, GS_CLOSING, GS_OPENING}; 
+// pin number array for the four outputs on this board (pins are D0, D1, D2, D3)
+const int8_t output_pins[NUMBER_OUTPUTS] = {0, 1, 2, 3};
+// pin number array for the eight inputs on this board (pins are A0, A1, A2, A3, D4, D5, A4, D7)
+const int8_t input_pins[NUMBER_INPUTS] = {PIN_A0, PIN_A1, PIN_A2, PIN_A3, 4, 5, PIN_A4, 7};
 
 /******************************************************************
  * Global Variables
@@ -164,7 +86,6 @@ MQTTClient mqtt(1024);
 OneWire oneWire(PIN_A5); 
 // Dallas Temperature measurement . 
 DallasTemperature sensors(&oneWire);
-
 // used to keep track of time to keep outputs active
 uint32_t lastOutputTime[NUMBER_OUTPUTS] = {0, 0, 0, 0};
 // current output state, arranged in array by input_pins
@@ -195,7 +116,7 @@ inline void watchdogReset(void) {
 }
 
 /******************************************************************
- * Verify/ Make WiFi and MQTT connections
+ * Verify/Make WiFi and MQTT connections
  ******************************************************************/
 bool connect() {
   static uint8_t  lastMQTTRetryCount = 0;
@@ -309,6 +230,13 @@ bool connect() {
       Println("  Subscribed to '" HASS_GATE_COMMAND_TOPIC "' MQTT topic");
     }
     
+    // set Home Assistant Availibility Topic to available
+    if (!mqtt.publish(HASS_AVAIL_TOPIC, HASS_PAYLOAD_AVAIL, true, 1)) {
+      Println("Failed to publish '" HASS_AVAIL_TOPIC "' MQTT topic");
+    } else {
+      Println("Published '" HASS_AVAIL_TOPIC "' MQTT topic, '" HASS_PAYLOAD_AVAIL "' topic value");
+    }
+
     // Publish Home Assistant gate config topic
     if (!mqtt.publish(HASS_GATE_CONFIG_TOPIC, HASS_GATE_CONFIG, true, 1)) {
       Println("  Failed to publish '" HASS_GATE_CONFIG_TOPIC "' MQTT topic");
@@ -531,9 +459,10 @@ void setup() {
   WiFi.begin(SECRET_SSID, SECRET_PASSWORD);
   
   // MQTT setup
+  mqtt.begin(MQTT_SERVER, MQTT_SERVERPORT, net);      // initialize mqtt object
   mqtt.setOptions(65, true, 5000);                    // keep Alive, Clean Session, Timeout
-  mqtt.begin(MQTT_SERVER, MQTT_SERVERPORT, net);
-  mqtt.onMessageAdvanced(messageReceived);
+  mqtt.setWill(HASS_AVAIL_TOPIC, HASS_PAYLOAD_NOT_AVAIL, true, 1); // Set MQTT Will to offline
+  mqtt.onMessageAdvanced(messageReceived);            // topic received handler
   
   #ifdef ENABLE_WATCHDOG
   // Set up the generic clock (GCLK2) used to clock the watchdog timer at 256Hz
