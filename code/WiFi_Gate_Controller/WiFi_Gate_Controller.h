@@ -1,7 +1,7 @@
 /*
   WiFi Gate Controller Project wide defines
 
-  Copyright (c) 2019 Mike Lawrence
+  Copyright (c) 2021 Mike Lawrence
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -37,7 +37,7 @@
 // Enable Low Power Mode on WiFi
 //#define ENABLE_WIFI_LOW_POWER
 // Current Version
-#define VERSION                   "0.5"
+#define VERSION                   "0.6"
 
 /******************************************************************
  * Application defines
@@ -58,34 +58,41 @@
  * Home Assistant MQTT Defines
  ******************************************************************/
 #define HASS_PREFIX               "homeassistant"
-#define HASS_GATE_NAME            "front_gate"
+#define HASS_NODE_NAME            "front_gate"
 
 // HASS defines below here should not be modified
-#define HASS_AVAIL_TOPIC          HASS_PREFIX "/cover/" HASS_GATE_NAME "/avail"
+#define HASS_AVAIL_TOPIC          HASS_PREFIX "/cover/" HASS_NODE_NAME "/avail"
 #define HASS_PAYLOAD_AVAIL        "online"
 #define HASS_PAYLOAD_NOT_AVAIL    "offline"
 
-#define HASS_GATE_CONFIG_TOPIC    HASS_PREFIX "/cover/" HASS_GATE_NAME "/gate/config"
-#define HASS_GATE_STATE_TOPIC     HASS_PREFIX "/cover/" HASS_GATE_NAME "/gate/state"
-#define HASS_GATE_COMMAND_TOPIC   HASS_PREFIX "/cover/" HASS_GATE_NAME "/gate/set"
-#define HASS_GATE_CONFIG          "{ \"name\": \"" BOARD_NAME "\", \"cmd_t\": \"" HASS_GATE_COMMAND_TOPIC \
+#define HASS_DEVICE_CONFIG1       "\", \"dev\": {\"cns\": [[\"mac\", \""
+#define HASS_DEVICE_CONFIG2       "\"]], \"ids\": [\""
+#define HASS_DEVICE_CONFIG3       "\"], \"mf\": \"Mike Lawrence\", \"name\": \"" BOARD_NAME "\", " \
+                                  "\"sw\": \"" VERSION "\", \"mdl\": \"WiFi Gate Controller\"}}"
+
+#define HASS_GATE_CONFIG_TOPIC    HASS_PREFIX "/cover/" HASS_NODE_NAME "/gate/config"
+#define HASS_GATE_STATE_TOPIC     HASS_PREFIX "/cover/" HASS_NODE_NAME "/gate/state"
+#define HASS_GATE_COMMAND_TOPIC   HASS_PREFIX "/cover/" HASS_NODE_NAME "/gate/set"
+#define HASS_GATE_CONFIG         "{ \"name\": \"" BOARD_NAME "\", \"cmd_t\": \"" HASS_GATE_COMMAND_TOPIC \
                                   "\", \"stat_t\": \"" HASS_GATE_STATE_TOPIC "\", \"qos\": 1, \"retain\": false" \
-                                  ", \"avty_t\": \"" HASS_AVAIL_TOPIC "\" }"
-                                  
-#define HASS_TEMP_CONFIG_TOPIC    HASS_PREFIX "/sensor/" HASS_GATE_NAME "/temperature/config"
-#define HASS_TEMP_STATE_TOPIC     HASS_PREFIX "/sensor/" HASS_GATE_NAME "/temperature/state"
+                                  ", \"dev_cla\": \"gate\", \"avty_t\": \"" HASS_AVAIL_TOPIC "\", \"uniq_id\": \"00"
+
+#define HASS_TEMP_CONFIG_TOPIC    HASS_PREFIX "/sensor/" HASS_NODE_NAME "/temperature/config"
+#define HASS_TEMP_STATE_TOPIC     HASS_PREFIX "/sensor/" HASS_NODE_NAME "/temperature/state"
 #define HASS_TEMP_CONFIG          "{ \"name\": \"" BOARD_NAME " Temperature\", \"stat_t\": \"" HASS_TEMP_STATE_TOPIC \
-                                  "\", \"unit_of_meas\": \"°C\", \"avty_t\": \"" HASS_AVAIL_TOPIC "\" }"
+                                  "\", \"dev_cla\": \"temperature\", \"unit_of_meas\": \"°C\", \"avty_t\": \"" \
+                                  HASS_AVAIL_TOPIC "\", \"uniq_id\": \"01"
                                   
-#define HASS_RSSI_CONFIG_TOPIC    HASS_PREFIX "/sensor/" HASS_GATE_NAME "/rssi/config"
-#define HASS_RSSI_STATE_TOPIC     HASS_PREFIX "/sensor/" HASS_GATE_NAME "/rssi/state"
+#define HASS_RSSI_CONFIG_TOPIC    HASS_PREFIX "/sensor/" HASS_NODE_NAME "/rssi/config"
+#define HASS_RSSI_STATE_TOPIC     HASS_PREFIX "/sensor/" HASS_NODE_NAME "/rssi/state"
 #define HASS_RSSI_CONFIG          "{ \"name\": \"" BOARD_NAME " RSSI\", \"stat_t\": \"" HASS_RSSI_STATE_TOPIC \
-                                  "\", \"unit_of_meas\": \"dBm\", \"avty_t\": \"" HASS_AVAIL_TOPIC "\" }"
+                                  "\", \"dev_cla\": \"signal_strength\", \"unit_of_meas\": \"dBm\", \"avty_t\": \"" \
+                                  HASS_AVAIL_TOPIC "\", \"uniq_id\": \"02"
                                   
-#define HASS_STATUS_CONFIG_TOPIC  HASS_PREFIX "/sensor/" HASS_GATE_NAME "/status/config"
-#define HASS_STATUS_STATE_TOPIC   HASS_PREFIX "/sensor/" HASS_GATE_NAME "/status/state"
+#define HASS_STATUS_CONFIG_TOPIC  HASS_PREFIX "/sensor/" HASS_NODE_NAME "/status/config"
+#define HASS_STATUS_STATE_TOPIC   HASS_PREFIX "/sensor/" HASS_NODE_NAME "/status/state"
 #define HASS_STATUS_CONFIG        "{ \"name\": \"" BOARD_NAME " Status\", \"stat_t\": \"" HASS_STATUS_STATE_TOPIC \
-                                  "\", \"avty_t\": \"" HASS_AVAIL_TOPIC "\" }"
+                                  "\", \"avty_t\": \"" HASS_AVAIL_TOPIC "\", \"uniq_id\": \"03"
 
 /******************************************************************
  * Board Defines

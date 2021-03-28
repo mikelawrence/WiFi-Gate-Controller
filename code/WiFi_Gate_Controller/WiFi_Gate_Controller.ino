@@ -4,18 +4,18 @@
   This code interfaces a remote gate opener (US Automation) using a custom 
   SAMD/ATWINC1500C board. The board is compatible with an Arduino MKR1000.
   
-  Built with Arduino IDE 1.8.9
+  Built with Arduino IDE 1.8.13
   
   The following libraries must be installed using Library Manager:
   
-    WiFi101 version 0.16.0 by Arduino
+    WiFi101 version 0.16.1 by Arduino
       WINC1501 Model B firmware version 19.6.1
     WiFi101OTA version 1.0.2 by Arduino
-    MQTT version 2.4.3 by Joel Gaehwiler
-    OneWire version 2.3.4 by Paul Stoffregen and many others
-    DallasTemperature version 3.8.0 by Miles Burton and others
+    MQTT version 2.5.0 by Joel Gaehwiler
+    OneWire version 2.3.5 by Paul Stoffregen and many others
+    DallasTemperature version 3.9.0 by Miles Burton and others
   
-  Copyright (c) 2019 Mike Lawrence
+  Copyright (c) 2021 Mike Lawrence
   
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -83,27 +83,33 @@ WiFiClient net;
 // MQTT CLient
 MQTTClient mqtt(1024);
 // oneWire instance to communicate with any 1-Wire devices  
-OneWire oneWire(PIN_A5); 
+OneWire    oneWire(PIN_A5); 
 // Dallas Temperature measurement . 
 DallasTemperature sensors(&oneWire);
+// MAC Address formatted as a string with ':' separators
+char       macStr[17] = "";
+// Unique ID formatted as a string
+char       uniqueIdStr[33] = "";
+// device string at the end of the config topics, must be runtime
+String     deviceStr;
 // used to keep track of time to keep outputs active
-uint32_t lastOutputTime[NUMBER_OUTPUTS] = {0, 0, 0, 0};
+uint32_t   lastOutputTime[NUMBER_OUTPUTS] = {0, 0, 0, 0};
 // current output state, arranged in array by input_pins
-uint8_t  outputState[NUMBER_OUTPUTS] = {LOW, LOW, LOW, LOW};
+uint8_t    outputState[NUMBER_OUTPUTS] = {LOW, LOW, LOW, LOW};
 // output in progress including deadband bewteen contact closures
-uint8_t  outputDeadband = HIGH;
+uint8_t    outputDeadband = HIGH;
 // used to keep track of deadband time between concact closures
-uint32_t lastOutputDeadbandTime = 0;
+uint32_t   lastOutputDeadbandTime = 0;
 // current input state, arranged in array by input_pins
-int8_t   inputState[NUMBER_INPUTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
+int8_t     inputState[NUMBER_INPUTS] = {-1, -1, -1, -1, -1, -1, -1, -1};
 // last Gate open/closed state true/false
-int8_t   lastGateOpenState = -1;
+int8_t     lastGateOpenState = -1;
 // when true a reset occurred recently
-bool     resetOccurred = true;
+bool       resetOccurred = true;
 // when true WiFi was recently disconnected from the network
-bool     wifiDisconnectOccurred = true;
+bool       wifiDisconnectOccurred = true;
 // when true WiFi was recently connected to the network
-bool     wifiConnectOccurred = false;
+bool       wifiConnectOccurred = false;
 
 /******************************************************************
  * Reset the watchdog timer
@@ -122,8 +128,6 @@ bool connect() {
   static uint8_t  lastMQTTRetryCount = 0;
   static uint32_t lastMQTTRetryTime = millis() - 10*1000;
   static uint32_t lastDisconnectTime;
-  byte mac[6];
-  IPAddress ip;
   int32_t status = WiFi.status();
   
   // Reset the watchdog every time this function is run
@@ -164,29 +168,36 @@ bool connect() {
     WiFi.lowPowerMode();
     Println("  Low Power Mode enabled");
     #endif
-    
-    #ifdef ENABLE_SERIAL
-    // Display MAC Address
-    WiFi.macAddress(mac);
-    Print("  MAC Address: ");
-    for (int i = 5; i != 0; i--) {
-      if (mac[i] < 16) Print("0");
-      Print(mac[i], HEX);
-      Print(":");
+
+    if (macStr[0] == 0) {
+      // MAC address not currently defined, grab the MAC address
+      // MAC address is only valid when WiFi is connected
+      byte mac[6];
+      
+      WiFi.macAddress(mac);
+      sprintf(macStr, "%02x:%02x:%02x:%02x:%02x:%02x",
+              mac[5], mac[4], mac[3], mac[2], mac[1], mac[0]);
+      // create device string
+      deviceStr = String(String(uniqueIdStr) + HASS_DEVICE_CONFIG1 +
+                         String(macStr) + HASS_DEVICE_CONFIG2 +
+                         String(uniqueIdStr) + HASS_DEVICE_CONFIG3);
     }
-    if (mac[0] < 16) Print("0");
-    Println(mac[0], HEX);
-    
+                       
+    Print("  MAC Address: ");
+    Println(macStr);
+
+    #ifdef ENABLE_SERIAL
     // Display IP Address
-    ip = WiFi.localIP();
     Print("  IP Address: ");
-    Println(ip);
+    Println(WiFi.localIP());
     #endif
     
     #ifdef ENABLE_OTA_UPDATES
     // start the WiFi OTA library with internal based storage
     WiFiOTA.begin(BOARD_NAME, OTA_PASSWORD, InternalStorage);
-    Println("WiFi OTA updates enabled");
+    Println("  WiFi OTA updates enabled");
+    #else
+    Println("  WiFi OTA updates disabled");
     #endif
   }
   
@@ -225,67 +236,80 @@ bool connect() {
         
     // Subscribe to Home Assistant command topic
     if (!mqtt.subscribe(HASS_GATE_COMMAND_TOPIC)) {
-      Println("  Failed to subscribe '" HASS_GATE_COMMAND_TOPIC "' MQTT topic");
+      Println("  Failed to subscribe MQTT topic '" HASS_GATE_COMMAND_TOPIC "'");
     } else {
-      Println("  Subscribed to '" HASS_GATE_COMMAND_TOPIC "' MQTT topic");
+      Println("  Subscribed to MQTT topic '" HASS_GATE_COMMAND_TOPIC "'");
     }
     
     // set Home Assistant Availibility Topic to available
     if (!mqtt.publish(HASS_AVAIL_TOPIC, HASS_PAYLOAD_AVAIL, true, 1)) {
-      Println("Failed to publish '" HASS_AVAIL_TOPIC "' MQTT topic");
+      Println("  Failed to publish MQTT topic '" HASS_AVAIL_TOPIC"', value '" HASS_PAYLOAD_AVAIL "'");
     } else {
-      Println("Published '" HASS_AVAIL_TOPIC "' MQTT topic, '" HASS_PAYLOAD_AVAIL "' topic value");
+      Println("  Published MQTT Topic '" HASS_AVAIL_TOPIC "', value '" HASS_PAYLOAD_AVAIL "'");
     }
 
     // Publish Home Assistant gate config topic
-    if (!mqtt.publish(HASS_GATE_CONFIG_TOPIC, HASS_GATE_CONFIG, true, 1)) {
-      Println("  Failed to publish '" HASS_GATE_CONFIG_TOPIC "' MQTT topic");
-    } else {
-      Println("  Published '" HASS_GATE_CONFIG_TOPIC "' MQTT topic, '" HASS_GATE_CONFIG "' topic value");
+    String configStr = String(HASS_GATE_CONFIG + deviceStr);
+    if (!mqtt.publish(HASS_GATE_CONFIG_TOPIC, configStr, true, 1)) {
+      Print("  Failed to publish MQTT topic '" HASS_GATE_CONFIG_TOPIC ", value '");
+      Print(configStr);
+      Println("'");
+   } else {
+      Print("  Published MQTT topic '" HASS_GATE_CONFIG_TOPIC "', value '");
+      Print(configStr);
+      Println("'");
     }
     
     // Publish Home Assistant temperature config topic
-    if (!mqtt.publish(HASS_TEMP_CONFIG_TOPIC, HASS_TEMP_CONFIG, true, 1)) {
-      Println("  Failed to publish '" HASS_TEMP_CONFIG_TOPIC "' MQTT topic");
+    configStr = String(HASS_TEMP_CONFIG + deviceStr);
+    if (!mqtt.publish(HASS_TEMP_CONFIG_TOPIC, configStr, true, 1)) {
+      Print("  Failed to publish MQTT topic '" HASS_TEMP_CONFIG_TOPIC "', value '");
+      Print(configStr);
+      Println("'");
     } else {
-      Println("  Published '" HASS_TEMP_CONFIG_TOPIC "' MQTT topic, '" HASS_TEMP_CONFIG "' topic value");
+      Print("  Published MQTT topic '" HASS_TEMP_CONFIG_TOPIC "', value '");
+      Print(configStr);
+      Println("'");
     }
     
     // Publish Home Assistant RSSI config topic
-    if (!mqtt.publish(HASS_RSSI_CONFIG_TOPIC, HASS_RSSI_CONFIG, true, 1)) {
-      Println("  Failed to publish '" HASS_RSSI_CONFIG_TOPIC "' MQTT topic");
+    configStr = String(HASS_RSSI_CONFIG + deviceStr);
+    if (!mqtt.publish(HASS_RSSI_CONFIG_TOPIC, configStr, true, 1)) {
+      Print("  Failed to publish MQTT topic '" HASS_RSSI_CONFIG_TOPIC "', value '");
+      Print(configStr);
+      Println("'");
     } else {
-      Println("  Published '" HASS_RSSI_CONFIG_TOPIC "' MQTT topic, '" HASS_RSSI_CONFIG "' topic value");
+      Print("  Published MQTT Topic '" HASS_RSSI_CONFIG_TOPIC "', value '");
+      Print(configStr);
+      Println("'");
     }
     
     // Publish Home Assistant status config topic
-    if (!mqtt.publish(HASS_STATUS_CONFIG_TOPIC, HASS_STATUS_CONFIG, true, 1)) {
-      Println("  Failed to publish '" HASS_STATUS_CONFIG_TOPIC "' MQTT topic");
+    configStr = String(HASS_STATUS_CONFIG + deviceStr);
+    if (!mqtt.publish(HASS_STATUS_CONFIG_TOPIC, configStr, true, 1)) {
+      Print("  Failed to publish MQTT topic '" HASS_STATUS_CONFIG_TOPIC "', value '");
+      Print(configStr);
+      Println("'");
     } else {
-      Println("  Published '" HASS_STATUS_CONFIG_TOPIC "' MQTT topic, '" HASS_STATUS_CONFIG "' topic value");
+      Print("  Published MQTT Topic '" HASS_STATUS_CONFIG_TOPIC "', value '");
+      Print(configStr);
+      Println("'");
     }
     
     if (resetOccurred) {                              // Hardware reset occurred
       // reset just recently occurred
       if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset Hardware", true, 1)) {
-        Println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset Hardware' topic value");
+        Println("  Failed to publish MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Reset Hardware'");
       } else {
-        Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset Hardware' topic value");
+        Println("  Published MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Reset Hardware'");
       }
     } else if (wifiConnectOccurred) {                 // WiFi Connected
       // Wifi just connected
       if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset WiFi Connect", true, 1)) {
-        Println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset WiFi Connect' topic value");
+        Println("  Failed to publish MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Reset WiFi Connect'");
       } else {
-        Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset WiFi Connect' topic value");
+        Println("  Published MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Reset WiFi Connect'");
       }
-/*    } else {
-      if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Reset MQTT Connect", true, 1)) {
-        // since no reset or WiFi connect occurred then it was a MQTT Connect
-        Println("  Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset MQTT Connect' topic value");
-      } else {
-        Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Reset MQTT Connect' topic value");
-      } */
     }
     
     // wait a bit before updating HASS_STATUS_STATE_TOPIC again
@@ -342,9 +366,9 @@ void messageReceived(MQTTClient *client, char topic[], char payload[], int paylo
     } else {
       // another output is in progress so we ignore this command
       if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Ignored MQTT Command", true, 1)) {
-        Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic");
+        Println("Failed to publish MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Ignored MQTT Command'");
       } else {
-        Println("  Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Ignored MQTT Command' topic value");
+        Println("Published MQTT Topic '" HASS_STATUS_STATE_TOPIC "', value 'Ignored MQTT Command'");
       }
       Print("Ignored '");
       Print(payload);
@@ -382,11 +406,20 @@ void setup() {
   #ifdef ENABLE_SERIAL
   delay(2000);
   #endif
-  
+                     
   // Announce who we are and software
   Println("\nWiFi Gate Controller: " BOARD_NAME);
   Println("  Software Version: " VERSION);
-  
+
+  // grab token from SAMD21 serial number
+  sprintf(uniqueIdStr, "%08x%08x%08x%08x",
+         *(volatile uint32_t *) 0x0080A00C,
+         *(volatile uint32_t *) 0x0080A040,
+         *(volatile uint32_t *) 0x0080A044,
+         *(volatile uint32_t *) 0x0080A048);
+  Print("  Unique ID: ");
+  Println(uniqueIdStr);
+
   // Start up the Dallas Temperature library 
   sensors.begin();
   // see that we have at least one temperature sensor
@@ -445,6 +478,7 @@ void setup() {
   }
   
   Println("WINC1500 Detected");
+
   
   #ifdef ENABLE_SERIAL
   // Display Firmware Version
@@ -460,7 +494,8 @@ void setup() {
   
   // MQTT setup
   mqtt.begin(MQTT_SERVER, MQTT_SERVERPORT, net);      // initialize mqtt object
-  mqtt.setOptions(65, true, 5000);                    // keep Alive, Clean Session, Timeout
+  mqtt.setKeepAlive(10);                             // mqtt keep alive interval in seconds
+//  mqtt.setOptions(65 , true, 5000);                   // keep Alive, Clean Session, Timeout
   mqtt.setWill(HASS_AVAIL_TOPIC, HASS_PAYLOAD_NOT_AVAIL, true, 1); // Set MQTT Will to offline
   mqtt.onMessageAdvanced(messageReceived);            // topic received handler
   
@@ -689,104 +724,128 @@ void loop() {
         case GS_ERROR:
           if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Gate Error", true, 1)) {
             publishFailed = true;                     // publish failed
-            Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, '' topic value");
+            Println("Failed to publish MQTT Topic '" HASS_STATUS_STATE_TOPIC "', value 'Gate Error'");
           } else {
-            Println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, '' topic value");
+            Println("Published MQTT Topic '" HASS_STATUS_STATE_TOPIC "', value 'Gate Error'");
           }
           break;
         case GS_CLOSED:
+          if (!mqtt.publish(HASS_GATE_STATE_TOPIC, "closed", true, 1)) {
+            publishFailed = true;                       // publish failed
+            Print("Failed to publish MQTT topic '" HASS_GATE_STATE_TOPIC "', value 'closed'");
+          } else {
+            Print("Published MQTT topic '" HASS_GATE_STATE_TOPIC "', value 'closed'");
+          }
           if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Gate Closed", true, 1)) {
             publishFailed = true;                     // publish failed
-            Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Closed' topic value");
+            Println("Failed to publish MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Gate Closed'");
           } else {
-            Println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Closed' topic value");
+            Println("Published MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Gate Closed'");
           }
           break;
         case GS_OPEN:
+          if (!mqtt.publish(HASS_GATE_STATE_TOPIC, "open", true, 1)) {
+            publishFailed = true;                       // publish failed
+            Print("Failed to publish MQTT topic '" HASS_GATE_STATE_TOPIC "', value 'open'");
+          } else {
+            Print("Published MQTT topic '" HASS_GATE_STATE_TOPIC "', value 'open'");
+          }
           if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Gate Open", true, 1)) {
             publishFailed = true;                     // publish failed
-            Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Open' topic value");
+            Println("Failed to publish MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Gate Open'");
           } else {
-            Println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Open' topic value");
+            Println("Published MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Gate Open'");
           }
           break;
         case GS_CLOSING:
+          if (!mqtt.publish(HASS_GATE_STATE_TOPIC, "closing", true, 1)) {
+            publishFailed = true;                       // publish failed
+            Print("Failed to publish MQTT topic '" HASS_GATE_STATE_TOPIC "', value 'closing'");
+          } else {
+            Print("Published MQTT topic '" HASS_GATE_STATE_TOPIC "', value 'closing'");
+          }
           if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Gate Closing", true, 1)) {
             publishFailed = true;                     // publish failed
-            Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Closing' topic value");
+            Println("Failed to publish MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Gate Closing'");
           } else {
-            Println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Closing' topic value");
+            Println("Published MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Gate Closing'");
           }
           break;
         case GS_OPENING:
+          if (!mqtt.publish(HASS_GATE_STATE_TOPIC, "opening", true, 1)) {
+            publishFailed = true;                       // publish failed
+            Print("Failed to publish MQTT topic '" HASS_GATE_STATE_TOPIC "', value 'opening'");
+          } else {
+            Print("Published MQTT topic '" HASS_GATE_STATE_TOPIC "', value 'opening'");
+          }
           if (!mqtt.publish(HASS_STATUS_STATE_TOPIC, "Gate Opening", true, 1)) {
             publishFailed = true;                     // publish failed
-            Println("Failed to publish '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Opening' topic value");
+            Println("Failed to publish MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Gate Opening'");
           } else {
-            Println("Published '" HASS_STATUS_STATE_TOPIC "' MQTT topic, 'Gate Opening' topic value");
+            Println("Published MQTT topic '" HASS_STATUS_STATE_TOPIC "', value 'Gate Opening'");
           }
           break;
         default:
           break;
       }
       
-      // convert Current Gate State to open, closed, or error
-      uint8_t curGateStateOpen = true;
-      if (curGateState == GS_UNKNOWN) {
-        // gate is in error
-        curGateStateOpen = -1;
-      } else if (curGateState == GS_RESET) {
-        // gate is in error
-        curGateStateOpen = -1;
-      } else if (curGateState == GS_ERROR) {
-        // gate is in error
-        curGateStateOpen = -2;
-      } else if (curGateState == GS_CLOSED) {
-        // gate is closed
-        curGateStateOpen = false;
-      }
+//      // convert Current Gate State to open, closed, or error
+//      uint8_t curGateStateOpen = true;
+//      if (curGateState == GS_UNKNOWN) {
+//        // gate is in error
+//        curGateStateOpen = -1;
+//      } else if (curGateState == GS_RESET) {
+//        // gate is in error
+//        curGateStateOpen = -1;
+//      } else if (curGateState == GS_ERROR) {
+//        // gate is in error
+//        curGateStateOpen = -2;
+//      } else if (curGateState == GS_CLOSED) {
+//        // gate is closed
+//        curGateStateOpen = false;
+//      }
       
-      // convert Next Gate State to open, closed, or error
-      uint8_t nextGateStateOpen = true;
-      if (nextGateState == GS_UNKNOWN) {
-        // gate is in error
-        nextGateStateOpen = -1;
-      } else if (nextGateState == GS_RESET) {
-        // gate is in error
-        nextGateStateOpen = -1;
-      } else if (nextGateState == GS_ERROR) {
-        // gate is in error
-        nextGateStateOpen = -2;
-      } else if (nextGateState == GS_CLOSED) {
-        // gate is closed
-        nextGateStateOpen = false;
-      }
+//      // convert Next Gate State to open, closed, or error
+//      uint8_t nextGateStateOpen = true;
+//      if (nextGateState == GS_UNKNOWN) {
+//        // gate is in error
+//        nextGateStateOpen = -1;
+//      } else if (nextGateState == GS_RESET) {
+//        // gate is in error
+//        nextGateStateOpen = -1;
+//      } else if (nextGateState == GS_ERROR) {
+//        // gate is in error
+//        nextGateStateOpen = -2;
+//      } else if (nextGateState == GS_CLOSED) {
+//        // gate is closed
+//        nextGateStateOpen = false;
+//      }
       
-      // handle change of gate state
-      if (curGateStateOpen != nextGateStateOpen) {
-        switch (nextGateStateOpen) {
-          case true:
-            strcpy(tempStr, "open");                  // gate is not closed
-            break;
-          case false:
-            strcpy(tempStr, "closed");                // we are closed
-            break;
-          default:       
-            strcpy(tempStr, "error");                 // gate is in error
-            break;
-        }
-        // publish gate state change
-        if (!mqtt.publish(HASS_GATE_STATE_TOPIC, tempStr, true, 1)) {
-          publishFailed = true;                       // publish failed
-          Print("Failed to publish '" HASS_GATE_STATE_TOPIC "' MQTT topic, '");
-          Print(tempStr);
-          Println("' topic value");
-        } else {
-          Print("Published '" HASS_GATE_STATE_TOPIC "' MQTT topic, '");
-          Print(tempStr);
-          Println("' topic value");
-        }
-      }
+//      // handle change of gate state
+//      if (curGateStateOpen != nextGateStateOpen) {
+//        switch (nextGateStateOpen) {
+//          case true:
+//            strcpy(tempStr, "open");                  // gate is not closed
+//            break;
+//          case false:
+//            strcpy(tempStr, "closed");                // we are closed
+//            break;
+//          default:       
+//            strcpy(tempStr, "error");                 // gate is in error
+//            break;
+//        }
+//        // publish gate state change
+//        if (!mqtt.publish(HASS_GATE_STATE_TOPIC, tempStr, true, 1)) {
+//          publishFailed = true;                       // publish failed
+//          Print("Failed to publish '" HASS_GATE_STATE_TOPIC "' MQTT topic, '");
+//          Print(tempStr);
+//          Println("' topic value");
+//        } else {
+//          Print("Published '" HASS_GATE_STATE_TOPIC "' MQTT topic, '");
+//          Print(tempStr);
+//          Println("' topic value");
+//        }
+//      }
       
       // check for failure to publish states
       if (publishFailed) {
@@ -820,24 +879,24 @@ void loop() {
         dtostrf(lastTemp, 1, 1, tempStr);             // convert temperature to string
         // publish the just read temperture
         if (!mqtt.publish(HASS_TEMP_STATE_TOPIC, tempStr, false, 1)) {
-          Print("Failed to publish '" HASS_TEMP_STATE_TOPIC "' MQTT topic, '");
+          Print("Failed to publish MQTT topic '" HASS_TEMP_STATE_TOPIC "', value '");
           Print(tempStr);
-          Println("' topic value");
+          Println("'");
         } else {
-          Print("Published '" HASS_TEMP_STATE_TOPIC "' MQTT topic, '");
+          Print("Published MQTT topic '" HASS_TEMP_STATE_TOPIC "', value '");
           Print(tempStr);
-          Println("' topic value");
+          Println("'");
         }
         itoa(WiFi.RSSI(), tempStr, 10);
         // publish the RSSI too
         if (!mqtt.publish(HASS_RSSI_STATE_TOPIC, tempStr, false, 1)) {
-          Print("Failed to publish '" HASS_RSSI_STATE_TOPIC "' MQTT topic, '");
+          Print("Failed to publish MQTT topic '" HASS_RSSI_STATE_TOPIC "', value '");
           Print(tempStr);
-          Println("' topic value");
+          Println("'");
         } else {
-          Print("Published '" HASS_RSSI_STATE_TOPIC "' MQTT topic, '");
+          Print("Published MQTT topic '" HASS_RSSI_STATE_TOPIC "', value '");
           Print(tempStr);
-          Println("' topic value");
+          Println("'");
         }
       }
     }
