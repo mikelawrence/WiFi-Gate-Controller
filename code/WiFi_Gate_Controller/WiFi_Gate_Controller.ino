@@ -458,17 +458,17 @@ void setup() {
   #endif
   
   // Configuration based on board type
-  #if   defined(ARDUINO_SAMD_FEATHER_M0)
+#if defined(ARDUINO_SAMD_FEATHER_M0)
   // Adafruit Feather M0 WINC1500 is sometimes used for testing
   Println("Arduino Board Type: Adafruit Feather M0");
   WiFi.setPins(8,7,4,2);                              // Feather M0 needs the WiFi pins redefined
-  #elif defined(ARDUINO_SAMD_MKR1000)
+#elif defined(ARDUINO_SAMD_MKR1000)
   // The WiFi Gate Controller board emulates a MRK1000 board
   Println("Arduino Board Type: Arduino MKR1000");
-  #else
+#else
   // Other boards can work but may require WiFi pin redefinition
   Println("Arduino Board Type: Unknown");
-  #endif
+#endif
   
   // WiFi setup
   if (WiFi.status() == WL_NO_SHIELD) {                // check for the presence of the WINC1500
@@ -494,8 +494,9 @@ void setup() {
   
   // MQTT setup
   mqtt.begin(MQTT_SERVER, MQTT_SERVERPORT, net);      // initialize mqtt object
-  mqtt.setKeepAlive(10);                             // mqtt keep alive interval in seconds
-//  mqtt.setOptions(65 , true, 5000);                   // keep Alive, Clean Session, Timeout
+  mqtt.setKeepAlive(600);                             // set Keep Alive to 10 minutes
+  mqtt.setCleanSession(true);                         // set Clean Session on
+  mqtt.setTimeout(5000);                              // set Timeout to 2 second
   mqtt.setWill(HASS_AVAIL_TOPIC, HASS_PAYLOAD_NOT_AVAIL, true, 1); // Set MQTT Will to offline
   mqtt.onMessageAdvanced(messageReceived);            // topic received handler
   
