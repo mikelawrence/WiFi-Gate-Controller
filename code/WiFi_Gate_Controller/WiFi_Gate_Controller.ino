@@ -460,7 +460,7 @@ void setup() {
   
   // MQTT setup
   mqtt.begin(MQTT_SERVER, MQTT_SERVERPORT, net);      // initialize mqtt object
-  mqtt.setOptions(65, true, 5000);                    // keep Alive, Clean Session, Timeout
+  mqtt.setOptions(600, true, 5000);                   // keep Alive, Clean Session, Timeout
   mqtt.setWill(HASS_AVAIL_TOPIC, HASS_PAYLOAD_NOT_AVAIL, true, 1); // Set MQTT Will to offline
   mqtt.onMessageAdvanced(messageReceived);            // topic received handler
   
